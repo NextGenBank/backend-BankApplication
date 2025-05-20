@@ -1,4 +1,4 @@
 package com.nextgenbank.backend.repository;
 
-public class UserRepository {
+public interface UserRepository {
 }

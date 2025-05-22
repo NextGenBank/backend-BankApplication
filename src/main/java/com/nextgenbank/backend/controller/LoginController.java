@@ -29,7 +29,7 @@ public class LoginController {
         User user = userService.authenticate(request.getEmail(), request.getPassword());
 
         String token = jwtProvider.generateToken(user.getEmail());
-        UserDto userDto = new UserDto(user); // use your constructor or mapping logic
+        UserDto userDto = new UserDto(user);
 
         return ResponseEntity.ok(new LoginResponseDto(token, userDto));
     }

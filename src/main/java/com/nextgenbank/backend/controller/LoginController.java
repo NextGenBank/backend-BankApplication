@@ -7,6 +7,7 @@ import com.nextgenbank.backend.security.JwtProvider;
 import com.nextgenbank.backend.service.UserService;
 import org.springframework.http.ResponseEntity;
 import com.nextgenbank.backend.model.User;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,7 +26,7 @@ public class LoginController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequestDto request) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto request) {
         User user = userService.authenticate(request.getEmail(), request.getPassword());
 
         String token = jwtProvider.generateToken(user.getEmail());
@@ -33,4 +34,5 @@ public class LoginController {
 
         return ResponseEntity.ok(new LoginResponseDto(token, userDto));
     }
+
 }

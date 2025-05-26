@@ -35,6 +35,8 @@ public class WebSecurityConfiguration {
                                 XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN)))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**", "/h2-console/**").permitAll()
+                        .requestMatchers("/api/user/me").hasAnyRole("CUSTOMER", "EMPLOYEE")
+                        .requestMatchers("/api/accounts/my").hasRole("CUSTOMER")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

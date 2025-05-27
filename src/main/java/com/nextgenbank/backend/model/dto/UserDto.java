@@ -10,6 +10,7 @@ public class UserDto {
     private String lastName;
     private String email;
     private String phoneNumber;
+    private String bsn;
     private UserRole role;
     private UserStatus status;
 
@@ -19,6 +20,7 @@ public class UserDto {
         this.lastName = user.getLastName();
         this.email = user.getEmail();
         this.phoneNumber = user.getPhoneNumber();
+        this.bsn = user.getBsnNumber();
         this.role = user.getRole();
         this.status = user.getStatus();
     }
@@ -38,6 +40,9 @@ public class UserDto {
 
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+
+    public String getBsn() { return bsn; }
+    public void setBsn(String bsn) { this.bsn = bsn; }
 
     public UserRole getRole() { return role; }
     public void setRole(UserRole role) { this.role = role; }

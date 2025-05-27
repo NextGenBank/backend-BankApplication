@@ -37,6 +37,7 @@ public class WebSecurityConfiguration {
                         .requestMatchers("/auth/**", "/h2-console/**").permitAll()
                         .requestMatchers("/api/user/me").hasAnyRole("CUSTOMER", "EMPLOYEE")
                         .requestMatchers("/api/accounts/my").hasRole("CUSTOMER")
+                        .requestMatchers("/api/accounts/lookup").hasRole("CUSTOMER")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

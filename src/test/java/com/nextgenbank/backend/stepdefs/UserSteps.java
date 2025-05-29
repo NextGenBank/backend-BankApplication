@@ -18,26 +18,46 @@ public class UserSteps {
 
     // Login Tests
 
-    @Given("I log in with email {string} and password {string}")
-    public void i_log_in_with_email_and_password(String email, String password) {
+    @Given("I successfully log in with email {string} and password {string}")
+    public void i_log_in_successfully(String email, String password) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         String body = String.format("""
-            {
-              "email": "%s",
-              "password": "%s"
-            }
-        """, email, password);
+        {
+          "email": "%s",
+          "password": "%s"
+        }
+    """, email, password);
 
         HttpEntity<String> request = new HttpEntity<>(body, headers);
         response = restTemplate.postForEntity("/auth/login", request, String.class);
+
+        // assert successful login
         assertEquals(200, response.getStatusCodeValue());
 
+        // Extract JWT
         String responseBody = response.getBody();
         int start = responseBody.indexOf(":\"") + 2;
         int end = responseBody.indexOf("\",");
         jwtToken = responseBody.substring(start, end);
+    }
+
+    @Given("I attempt to log in with email {string} and password {string}")
+    public void i_attempt_login(String email, String password) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        String body = String.format("""
+        {
+          "email": "%s",
+          "password": "%s"
+        }
+    """, email, password);
+
+        HttpEntity<String> request = new HttpEntity<>(body, headers);
+        response = restTemplate.postForEntity("/auth/login", request, String.class);
+        //  no assert, we expect to check status later
     }
 
     @When("I GET {string}")

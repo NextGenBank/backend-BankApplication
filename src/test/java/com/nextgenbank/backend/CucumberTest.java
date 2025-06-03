@@ -9,7 +9,7 @@ import static io.cucumber.junit.platform.engine.Constants.*;
 @Suite
 @Cucumber
 @SelectClasspathResource("features")
-@ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "com.nextgenbank.backend.stepdefs")
+@ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "com.nextgenbank.backend.steps")
 @ConfigurationParameter(key = PLUGIN_PROPERTY_NAME, value = "pretty")
 public class CucumberTest {
 }

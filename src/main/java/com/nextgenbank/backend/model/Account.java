@@ -105,4 +105,18 @@ public class Account {
         this.createdBy = createdBy;
     }
 
+    public List<Transaction> getOutgoingTransactions() {
+        return outgoingTransactions;
+    }
+    public void setOutgoingTransactions(List<Transaction> outgoingTransactions) {
+        this.outgoingTransactions = outgoingTransactions;
+    }
+
+    public List<Transaction> getIncomingTransactions() {
+        return incomingTransactions;
+    }
+    public void setIncomingTransactions(List<Transaction> incomingTransactions) {
+        this.incomingTransactions = incomingTransactions;
+    }
+
 }

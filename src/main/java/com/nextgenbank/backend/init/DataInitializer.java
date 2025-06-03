@@ -45,6 +45,28 @@ public class DataInitializer implements CommandLineRunner {
         alice.setStatus(UserStatus.APPROVED);
         alice.setCreatedAt(LocalDateTime.now());
 
+        User penderson = new User();
+        penderson.setFirstName("Penderson");
+        penderson.setLastName("Pendington");
+        penderson.setEmail("penderson@example.com");
+        penderson.setPassword(passwordEncoder.encode("penderson123"));
+        penderson.setBsnNumber("456123789");
+        penderson.setPhoneNumber("+4561237890");
+        penderson.setRole(UserRole.CUSTOMER);
+        penderson.setStatus(UserStatus.PENDING);
+        penderson.setCreatedAt(LocalDateTime.now());
+
+        User kevin = new User();
+        kevin.setFirstName("Kevin");
+        kevin.setLastName("Doe");
+        kevin.setEmail("kevin@example.com");
+        kevin.setPassword(passwordEncoder.encode("kevin123"));
+        kevin.setBsnNumber("789654123");
+        kevin.setPhoneNumber("+7896541230");
+        kevin.setRole(UserRole.CUSTOMER);
+        kevin.setStatus(UserStatus.PENDING);
+        kevin.setCreatedAt(LocalDateTime.now());
+
         User bob = new User();
         bob.setFirstName("Bob");
         bob.setLastName("Johnson");
@@ -57,6 +79,8 @@ public class DataInitializer implements CommandLineRunner {
         bob.setCreatedAt(LocalDateTime.now());
 
         userRepository.save(alice);
+        userRepository.save(penderson);
+        userRepository.save(kevin);
         userRepository.save(bob);
 
         // Create Accounts

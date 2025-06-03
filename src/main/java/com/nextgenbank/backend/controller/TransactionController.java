@@ -1,9 +1,11 @@
 package com.nextgenbank.backend.controller;
 
+import com.nextgenbank.backend.model.dto.SwitchFundsRequestDto;
 import com.nextgenbank.backend.model.dto.TransactionResponseDto;
 import com.nextgenbank.backend.security.CurrentUser;
 import com.nextgenbank.backend.security.UserPrincipal;
 import com.nextgenbank.backend.service.TransactionService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,5 +24,12 @@ public class TransactionController {
     @GetMapping
     public List<TransactionResponseDto> getUserTransactions(@CurrentUser UserPrincipal principal) {
         return transactionService.getTransactionsForUser(principal.getUser());
+    }
+
+    @PostMapping("/switch")
+    public ResponseEntity<Void> switchFunds(@CurrentUser UserPrincipal principal,
+                                            @RequestBody SwitchFundsRequestDto request) {
+        transactionService.switchFunds(principal.getUser(), request);
+        return ResponseEntity.ok().build();
     }
 }

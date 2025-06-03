@@ -53,4 +53,20 @@ public class UserService {
 
         userRepository.save(user);
     }
+
+    public void approveUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setStatus(UserStatus.APPROVED);
+        userRepository.save(user);
+    }
+
+    public void rejectUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setStatus(UserStatus.REJECTED);
+        userRepository.save(user);
+    }
 }

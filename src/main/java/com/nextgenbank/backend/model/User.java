@@ -126,4 +126,11 @@ public class User {
         this.createdAt = createdAt;
     }
 
+    public List<Account> getAccountsOwned() {
+        return accountsOwned;
+    }
+
+    public void setAccountsOwned(List<Account> accountsOwned) {
+        this.accountsOwned = accountsOwned;
+    }
 }

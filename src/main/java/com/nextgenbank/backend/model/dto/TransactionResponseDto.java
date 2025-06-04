@@ -12,5 +12,4 @@ public record TransactionResponseDto(
         LocalDateTime timestamp,
         String fromIban,
         String toIban
-) {
-}
+) { }

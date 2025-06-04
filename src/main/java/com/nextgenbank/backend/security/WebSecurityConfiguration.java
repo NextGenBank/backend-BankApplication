@@ -28,21 +28,33 @@ public class WebSecurityConfiguration {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // CSRF off for APIs
+                .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .headers(headers -> headers
                         .addHeaderWriter(new XFrameOptionsHeaderWriter(
-                                XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN)))
+                                XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN))
+                )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/h2-console/**").permitAll()
+                        .requestMatchers(
+                                "/auth/**",
+                                "/h2-console/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/swagger-resources/**",
+                                "/configuration/**",
+                                "/webjars/**",
+                                "/favicon.ico"
+                        ).permitAll()
                         .requestMatchers("/api/user/me").hasAnyRole("CUSTOMER", "EMPLOYEE")
                         .requestMatchers("/api/accounts/my").hasRole("CUSTOMER")
                         .requestMatchers("/api/accounts/lookup").hasRole("CUSTOMER")
+                        .requestMatchers("/api/transactions").hasRole("CUSTOMER")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -51,7 +63,7 @@ public class WebSecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173")); // frontend port
+        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:8080"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

@@ -1,4 +1,4 @@
-package com.nextgenbank.backend.stepdefs;
+package com.nextgenbank.backend.steps;
 
 import io.cucumber.java.en.*;
 import org.springframework.boot.test.web.client.TestRestTemplate;

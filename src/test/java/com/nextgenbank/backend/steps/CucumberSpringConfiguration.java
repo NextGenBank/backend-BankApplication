@@ -1,4 +1,4 @@
-package com.nextgenbank.backend.stepdefs;
+package com.nextgenbank.backend.steps;
 
 import io.cucumber.spring.CucumberContextConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;

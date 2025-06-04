@@ -19,27 +19,30 @@ public class RegisterRequestDto {
     private String email;
 
     @NotBlank(message = "Password is required")
+    @Size(min = 6, message = "Password must be at least 6 characters")
+    @Pattern(
+            regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{6,}$",
+            message = "Password must contain at least 1 letter and 1 number"
+    )
     private String password;
 
     @NotBlank(message = "BSN is required")
-    private String bsnNumber;
+    @Pattern(regexp = "^\\d{9}$", message = "BSN must be exactly 9 digits")
+    private String bsn;
 
     @NotBlank(message = "Phone number is required")
-    private String phoneNumber;
-    
-    private String transferLimit;
+    @Pattern(regexp = "^06\\d{8}$", message = "Phone number must start with 06 and have 10 digits")
+    private String phone;
 
     public RegisterRequestDto() {}
 
-    public RegisterRequestDto(String firstName, String lastName, String email, String password, 
-                             String bsnNumber, String phoneNumber, String transferLimit) {
+    public RegisterRequestDto(String firstName, String lastName, String email, String password, String bsn, String phone) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
         this.password = password;
-        this.bsnNumber = bsnNumber;
-        this.phoneNumber = phoneNumber;
-        this.transferLimit = transferLimit;
+        this.bsn = bsn;
+        this.phone = phone;
     }
 
     // Getters and setters
@@ -55,12 +58,9 @@ public class RegisterRequestDto {
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
 
-    public String getBsnNumber() { return bsnNumber; }
-    public void setBsnNumber(String bsnNumber) { this.bsnNumber = bsnNumber; }
+    public String getBsn() { return bsn; }
+    public void setBsn(String bsn) { this.bsn = bsn; }
 
-    public String getPhoneNumber() { return phoneNumber; }
-    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
-    
-    public String getTransferLimit() { return transferLimit; }
-    public void setTransferLimit(String transferLimit) { this.transferLimit = transferLimit; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
 }

@@ -28,15 +28,13 @@ public class UserSteps {
           "email": "%s",
           "password": "%s"
         }
-    """, email, password);
+        """, email, password);
 
         HttpEntity<String> request = new HttpEntity<>(body, headers);
         response = restTemplate.postForEntity("/auth/login", request, String.class);
 
-        // assert successful login
         assertEquals(200, response.getStatusCodeValue());
 
-        // Extract JWT
         String responseBody = response.getBody();
         int start = responseBody.indexOf(":\"") + 2;
         int end = responseBody.indexOf("\",");
@@ -53,11 +51,10 @@ public class UserSteps {
           "email": "%s",
           "password": "%s"
         }
-    """, email, password);
+        """, email, password);
 
         HttpEntity<String> request = new HttpEntity<>(body, headers);
         response = restTemplate.postForEntity("/auth/login", request, String.class);
-        //  no assert, we expect to check status later
     }
 
     @When("I GET {string}")
@@ -75,30 +72,60 @@ public class UserSteps {
     public void i_register_with(io.cucumber.datatable.DataTable dataTable) {
         Map<String, String> data = dataTable.asMap();
 
+        // Convert [empty] to ""
+        String firstName = convertEmpty(data.get("firstName"));
+        String lastName = convertEmpty(data.get("lastName"));
+        String email = convertEmpty(data.get("email"));
+        String password = convertEmpty(data.get("password"));
+        String bsn = convertEmpty(data.get("bsn"));
+        String phone = convertEmpty(data.get("phone"));
+
+        String json = String.format("""
+        {
+          "firstName": "%s",
+          "lastName": "%s",
+          "email": "%s",
+          "password": "%s",
+          "bsn": "%s",
+          "phone": "%s"
+        }
+        """, firstName, lastName, email, password, bsn, phone);
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        String body = String.format("""
-            {
-              "firstName": "%s",
-              "lastName": "%s",
-              "email": "%s",
-              "password": "%s",
-              "bsn": "%s",
-              "phone": "%s"
-            }
-        """,
-                data.get("firstName"), data.get("lastName"), data.get("email"),
-                data.get("password"), data.get("bsn"), data.get("phone"));
-
-        HttpEntity<String> request = new HttpEntity<>(body, headers);
+        HttpEntity<String> request = new HttpEntity<>(json, headers);
         response = restTemplate.postForEntity("/auth/register", request, String.class);
     }
 
-    // Response check
+    private String convertEmpty(String value) {
+        if (value == null || value.equalsIgnoreCase("[empty]")) {
+            return "";
+        }
+        return value.trim();
+    }
+
+
+    // Response Check
 
     @Then("the response status should be {int}")
     public void the_response_status_should_be(Integer status) {
         assertEquals(status, response.getStatusCodeValue());
+    }
+
+    @Then("a JWT token should be returned")
+    public void a_jwt_token_should_be_returned() {
+        assertNotNull(jwtToken, "JWT token should not be null");
+        assertTrue(jwtToken.startsWith("ey"), "Token should start like a real JWT");
+    }
+
+    @Then("the user with email {string} should exist in the database")
+    public void the_user_should_exist(String email) {
+        ResponseEntity<Boolean> result = restTemplate.getForEntity(
+                "/api/test/user-exists?email=" + email, Boolean.class
+        );
+
+        assertEquals(200, result.getStatusCodeValue());
+        assertTrue(Boolean.TRUE.equals(result.getBody()), "User with email " + email + " should exist");
     }
 }

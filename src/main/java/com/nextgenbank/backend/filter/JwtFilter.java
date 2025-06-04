@@ -2,20 +2,17 @@ package com.nextgenbank.backend.filter;
 
 import com.nextgenbank.backend.security.JwtProvider;
 import com.nextgenbank.backend.service.EmailUserDetailsService;
-import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
@@ -31,16 +28,9 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/auth")
-                || path.equals("/v3/api-docs")
-                || path.startsWith("/v3/api-docs/")
-                || path.equals("/swagger-ui.html")
-                || path.startsWith("/swagger-ui")
-                || path.startsWith("/swagger-resources")
-                || path.startsWith("/webjars")
-                || path.startsWith("/configuration")
-                || path.startsWith("/favicon.ico")
-                || path.startsWith("/h2-console");
+        return path.startsWith("/auth") || 
+               path.startsWith("/api/") || 
+               path.startsWith("/h2-console/");
     }
 
     @Override
@@ -53,19 +43,14 @@ public class JwtFilter extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
-            Claims claims = jwtProvider.extractAllClaims(token);
-
-            String email = claims.getSubject();
-            String role = claims.get("role", String.class);
+            String email = jwtProvider.extractEmail(token);
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
-                                userDetails, null,
-                                Collections.singleton(new SimpleGrantedAuthority("ROLE_" + role))
-                        );
+                                userDetails, null, userDetails.getAuthorities());
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }

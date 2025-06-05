@@ -40,6 +40,11 @@ public class UserService {
             throw new IllegalArgumentException("Email already registered");
         }
 
+        // ✅ Check if BSN already exists
+        if (userRepository.findByBsnNumber(request.getBsn()).isPresent()) {
+            throw new IllegalArgumentException("BSN already registered");
+        }
+
         User user = new User();
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());

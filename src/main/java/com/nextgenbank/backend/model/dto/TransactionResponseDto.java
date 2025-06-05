@@ -11,5 +11,8 @@ public record TransactionResponseDto(
         BigDecimal amount,
         LocalDateTime timestamp,
         String fromIban,
-        String toIban
-) { }
+        String fromName,
+        String toIban,
+        String toName,
+        String direction 
+) {}

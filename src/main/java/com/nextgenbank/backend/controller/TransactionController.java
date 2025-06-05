@@ -26,51 +26,12 @@ public class TransactionController {
     /**
      * GET /api/transactions
      * Возвращает историю транзакций для текущего пользователя.
+     * Ответ – List<TransactionResponseDto> (с девятью полями).
      */
     @GetMapping
     public List<TransactionResponseDto> getUserTransactions(@CurrentUser UserPrincipal principal) {
         User user = principal.getUser();
-        List<Transaction> txs = transactionService.getTransactionsForUser(user);
-
-        return txs.stream()
-                .map(tx -> {
-                    // Извлекаем fromAccount и toAccount, если они не null
-                    String fromIban = null;
-                    String fromName = null;
-                    if (tx.getFromAccount() != null) {
-                        fromIban = tx.getFromAccount().getIBAN();
-                        User fromCustomer = tx.getFromAccount().getCustomer();
-                        if (fromCustomer != null) {
-                            fromName = fromCustomer.getFirstName() + " " + fromCustomer.getLastName();
-                        }
-                    }
-
-                    String toIban = null;
-                    String toName = null;
-                    if (tx.getToAccount() != null) {
-                        toIban = tx.getToAccount().getIBAN();
-                        User toCustomer = tx.getToAccount().getCustomer();
-                        if (toCustomer != null) {
-                            toName = toCustomer.getFirstName() + " " + toCustomer.getLastName();
-                        }
-                    }
-
-                    // Поле direction — просто строковое представление типа транзакции
-                    String direction = tx.getTransactionType().name();
-
-                    return new TransactionResponseDto(
-                            tx.getTransactionId(),
-                            tx.getTransactionType(),
-                            tx.getAmount(),
-                            tx.getTimestamp(),
-                            fromIban,
-                            fromName,
-                            toIban,
-                            toName,
-                            direction
-                    );
-                })
-                .toList();
+        return transactionService.getTransactionsForUser(user);
     }
 
     /**
@@ -98,7 +59,7 @@ public class TransactionController {
                     dto.getAmount()
             );
 
-            // Собираем информацию для fromName / toName
+            // Собираем имена для отправителя и получателя
             String fromName = tx.getFromAccount().getCustomer().getFirstName() + " " +
                     tx.getFromAccount().getCustomer().getLastName();
             String toName   = tx.getToAccount().getCustomer().getFirstName() + " " +
@@ -145,7 +106,7 @@ public class TransactionController {
                     dto.getAmount()
             );
 
-            String toName = tx.getToAccount().getCustomer().getFirstName() + " " +
+            String toName    = tx.getToAccount().getCustomer().getFirstName() + " " +
                     tx.getToAccount().getCustomer().getLastName();
             String direction = tx.getTransactionType().name();
 
@@ -154,8 +115,8 @@ public class TransactionController {
                     tx.getTransactionType(),
                     tx.getAmount(),
                     tx.getTimestamp(),
-                    null,           // fromIban отсутствует при депозите
-                    null,           // fromName отсутствует при депозите
+                    null,            // fromIban отсутствует при депозите
+                    null,            // fromName отсутствует при депозите
                     tx.getToAccount().getIBAN(),
                     toName,
                     direction
@@ -201,8 +162,8 @@ public class TransactionController {
                     tx.getTimestamp(),
                     tx.getFromAccount().getIBAN(),
                     fromName,
-                    null,       // toIban отсутствует при снятии
-                    null,       // toName отсутствует при снятии
+                    null,            // toIban отсутствует при снятии
+                    null,            // toName отсутствует при снятии
                     direction
             ));
         } catch (IllegalArgumentException ex) {

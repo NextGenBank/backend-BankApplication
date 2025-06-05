@@ -22,26 +22,56 @@ public class TransactionService {
     public List<TransactionResponseDto> getTransactionsForUser(User user) {
         Long userId = user.getUserId();
 
-        List<Transaction> transactions = transactionRepository.findAll().stream()
+        return transactionRepository.findAll().stream()
                 .filter(txn -> {
                     Account from = txn.getFromAccount();
                     Account to = txn.getToAccount();
-
                     return (from != null && from.getCustomer().getUserId().equals(userId)) ||
                             (to != null && to.getCustomer().getUserId().equals(userId));
                 })
-                .collect(Collectors.toList());
+                .map(txn -> {
+                    String fromIban = "N/A";
+                    String fromName = "Bank";
+                    if (txn.getFromAccount() != null) {
+                        fromIban = txn.getFromAccount().getIBAN();
+                        User sender = txn.getFromAccount().getCustomer();
+                        fromName = sender.getFirstName() + " " + sender.getLastName();
+                    }
 
-        return transactions.stream()
-                .map(txn -> new TransactionResponseDto(
-                        txn.getTransactionId(),
-                        txn.getTransactionType(),
-                        txn.getAmount(),
-                        txn.getTimestamp(),
-                        txn.getFromAccount() != null ? txn.getFromAccount().getIBAN() : null,
-                        txn.getToAccount() != null ? txn.getToAccount().getIBAN() : null
-                ))
+                    String toIban = "N/A";
+                    String toName = "Unknown";
+                    if (txn.getToAccount() != null) {
+                        toIban = txn.getToAccount().getIBAN();
+                        User receiver = txn.getToAccount().getCustomer();
+                        toName = receiver.getFirstName() + " " + receiver.getLastName();
+                    }
+
+                    boolean isSender = txn.getFromAccount() != null &&
+                            txn.getFromAccount().getCustomer().getUserId().equals(userId);
+                    boolean isReceiver = txn.getToAccount() != null &&
+                            txn.getToAccount().getCustomer().getUserId().equals(userId);
+
+                    String direction;
+                    if (isSender && isReceiver) {
+                        direction = "INTERNAL";
+                    } else if (isSender) {
+                        direction = "OUTGOING";
+                    } else {
+                        direction = "INCOMING";
+                    }
+
+                    return new TransactionResponseDto(
+                            txn.getTransactionId(),
+                            txn.getTransactionType(),
+                            txn.getAmount(),
+                            txn.getTimestamp(),
+                            fromIban,
+                            fromName,
+                            toIban,
+                            toName,
+                            direction
+                    );
+                })
                 .collect(Collectors.toList());
     }
-
 }

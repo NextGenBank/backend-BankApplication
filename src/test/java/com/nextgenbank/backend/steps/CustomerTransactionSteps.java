@@ -103,7 +103,7 @@ public class CustomerTransactionSteps {
     @Then("the response should be unauthorized")
     public void the_response_should_be_unauthorized() {
         assertNotNull(latestResponse, "No response received");
-        assertEquals(HttpStatus.FORBIDDEN, latestResponse.getStatusCode(), "Expected 403 FORBIDDEN");
+        assertEquals(HttpStatus.UNAUTHORIZED, latestResponse.getStatusCode(), "Expected 401 UNAUTHORIZED");
     }
 
     @Then("the response should contain only transactions belonging to {string}")

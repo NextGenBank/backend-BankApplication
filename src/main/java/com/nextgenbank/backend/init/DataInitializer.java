@@ -56,10 +56,22 @@ public class DataInitializer implements CommandLineRunner {
         bob.setStatus(UserStatus.APPROVED);
         bob.setCreatedAt(LocalDateTime.now());
 
+        User charlie = new User();
+        charlie.setFirstName("Charlie");
+        charlie.setLastName("Brown");
+        charlie.setEmail("charlie@example.com");
+        charlie.setPassword(passwordEncoder.encode("charlie123"));
+        charlie.setBsnNumber("555444333");
+        charlie.setPhoneNumber("+3123456789");
+        charlie.setRole(UserRole.CUSTOMER);
+        charlie.setStatus(UserStatus.APPROVED);
+        charlie.setCreatedAt(LocalDateTime.now());
+
         userRepository.save(alice);
         userRepository.save(bob);
+        userRepository.save(charlie);
 
-        // Create Accounts
+        // Create Accounts for Alice
         Account aliceAccount = new Account();
         aliceAccount.setIBAN("NL12345678901234567890");
         aliceAccount.setCustomer(alice);
@@ -80,8 +92,31 @@ public class DataInitializer implements CommandLineRunner {
         aliceSavings.setCreatedAt(LocalDateTime.now());
         aliceSavings.setCreatedBy(bob);
 
+        // Create Accounts for Charlie
+        Account charlieChecking = new Account();
+        charlieChecking.setIBAN("NL22223333444455556666");
+        charlieChecking.setCustomer(charlie);
+        charlieChecking.setAccountType(AccountType.CHECKING);
+        charlieChecking.setBalance(new BigDecimal("2000.00"));
+        charlieChecking.setAbsoluteTransferLimit(new BigDecimal("5000.00"));
+        charlieChecking.setDailyTransferAmount(new BigDecimal("0.00"));
+        charlieChecking.setCreatedAt(LocalDateTime.now());
+        charlieChecking.setCreatedBy(bob);
+
+        Account charlieSavings = new Account();
+        charlieSavings.setIBAN("NL77778888999900001111");
+        charlieSavings.setCustomer(charlie);
+        charlieSavings.setAccountType(AccountType.SAVINGS);
+        charlieSavings.setBalance(new BigDecimal("3000.00"));
+        charlieSavings.setAbsoluteTransferLimit(new BigDecimal("10000.00"));
+        charlieSavings.setDailyTransferAmount(new BigDecimal("0.00"));
+        charlieSavings.setCreatedAt(LocalDateTime.now());
+        charlieSavings.setCreatedBy(bob);
+
         accountRepository.save(aliceAccount);
         accountRepository.save(aliceSavings);
+        accountRepository.save(charlieChecking);
+        accountRepository.save(charlieSavings);
 
         // Create Transactions
         Transaction txn1 = new Transaction();
@@ -100,8 +135,26 @@ public class DataInitializer implements CommandLineRunner {
         txn2.setInitiator(alice);
         txn2.setTransactionType(TransactionType.TRANSFER);
 
+        Transaction txn3 = new Transaction();
+        txn3.setFromAccount(aliceAccount);
+        txn3.setToAccount(charlieChecking);
+        txn3.setAmount(new BigDecimal("200.00"));
+        txn3.setTimestamp(LocalDateTime.now());
+        txn3.setInitiator(alice);
+        txn3.setTransactionType(TransactionType.TRANSFER);
+
+        Transaction txn4 = new Transaction();
+        txn4.setFromAccount(charlieChecking);
+        txn4.setToAccount(charlieSavings);
+        txn4.setAmount(new BigDecimal("300.00"));
+        txn4.setTimestamp(LocalDateTime.now());
+        txn4.setInitiator(charlie);
+        txn4.setTransactionType(TransactionType.TRANSFER);
+
         transactionRepository.save(txn1);
         transactionRepository.save(txn2);
+        transactionRepository.save(txn3);
+        transactionRepository.save(txn4);
 
         System.out.println("Sample data initialised.");
     }

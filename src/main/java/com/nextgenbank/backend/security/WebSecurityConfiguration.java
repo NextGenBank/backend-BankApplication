@@ -38,6 +38,7 @@ public class WebSecurityConfiguration {
                         .requestMatchers(
                                 "/auth/**",
                                 "/h2-console/**",
+                                "/api/test/user-exists",
                                 "/v3/api-docs",
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html",
@@ -48,6 +49,8 @@ public class WebSecurityConfiguration {
                                 "/favicon.ico"
                         ).permitAll()
                         .requestMatchers("/api/user/me").hasAnyRole("CUSTOMER", "EMPLOYEE")
+                        .requestMatchers("/api/test/**").permitAll()
+
                         .requestMatchers("/api/accounts/my").hasRole("CUSTOMER")
                         .requestMatchers("/api/accounts/lookup").hasRole("CUSTOMER")
                         .requestMatchers("/api/transactions").hasRole("CUSTOMER")

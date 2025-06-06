@@ -35,8 +35,8 @@ Feature: Password validation during registration
       | firstName | Valid                 |
       | lastName  | Combo                 |
       | email     | validpass@example.com|
-      | password  | ab12#@                |
-      | bsn       | 123456789             |
-      | phone     | 0612345678            |
+      | password  | Ab12a1!               |
+      | bsn       | 553456789             |
+      | phone     | 0698765433            |
     Then the response status should be 200
     And the user with email "validpass@example.com" should exist in the database

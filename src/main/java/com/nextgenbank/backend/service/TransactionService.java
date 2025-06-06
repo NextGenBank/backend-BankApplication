@@ -1,3 +1,4 @@
+// src/main/java/com/nextgenbank/backend/service/TransactionService.java
 package com.nextgenbank.backend.service;
 
 import com.nextgenbank.backend.model.Account;
@@ -22,33 +23,30 @@ public class TransactionService {
     public List<TransactionResponseDto> getTransactionsForUser(User user) {
         Long userId = user.getUserId();
 
-        return transactionRepository.findAll().stream()
-                .filter(txn -> {
-                    Account from = txn.getFromAccount();
-                    Account to = txn.getToAccount();
-                    return (from != null && from.getCustomer().getUserId().equals(userId)) ||
-                            (to != null && to.getCustomer().getUserId().equals(userId));
-                })
+        return transactionRepository.findAllByUserId(userId).stream()
                 .map(txn -> {
+                    // --- Собираем fromIban и fromName ---
                     String fromIban = "N/A";
                     String fromName = "Bank";
                     if (txn.getFromAccount() != null) {
                         fromIban = txn.getFromAccount().getIBAN();
-                        User sender = txn.getFromAccount().getCustomer();
-                        fromName = sender.getFirstName() + " " + sender.getLastName();
+                        fromName = txn.getFromAccount().getCustomer().getFirstName() + " " +
+                                txn.getFromAccount().getCustomer().getLastName();
                     }
 
+                    // --- Собираем toIban и toName ---
                     String toIban = "N/A";
                     String toName = "Unknown";
                     if (txn.getToAccount() != null) {
                         toIban = txn.getToAccount().getIBAN();
-                        User receiver = txn.getToAccount().getCustomer();
-                        toName = receiver.getFirstName() + " " + receiver.getLastName();
+                        toName = txn.getToAccount().getCustomer().getFirstName() + " " +
+                                txn.getToAccount().getCustomer().getLastName();
                     }
 
-                    boolean isSender = txn.getFromAccount() != null &&
+                    // --- Определяем направление (direction) ---
+                    boolean isSender   = txn.getFromAccount() != null &&
                             txn.getFromAccount().getCustomer().getUserId().equals(userId);
-                    boolean isReceiver = txn.getToAccount() != null &&
+                    boolean isReceiver = txn.getToAccount()   != null &&
                             txn.getToAccount().getCustomer().getUserId().equals(userId);
 
                     String direction;

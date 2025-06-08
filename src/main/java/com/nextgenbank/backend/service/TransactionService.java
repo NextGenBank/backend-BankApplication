@@ -105,8 +105,8 @@ public class TransactionService {
         }
 
         return transactions;
+
     }
-}
     @Transactional
     public SwitchFundsResponseDto switchFunds(User user, SwitchFundsRequestDto request){
 
@@ -156,5 +156,5 @@ public class TransactionService {
         transactionRepository.save(transaction);
 
         return new SwitchFundsResponseDto(checking.getBalance(), savings.getBalance());
+        }
     }
-}

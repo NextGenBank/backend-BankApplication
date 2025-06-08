@@ -102,7 +102,7 @@ public class DataInitializer implements CommandLineRunner {
         kevin.setPhoneNumber("+7896541230");
         kevin.setRole(UserRole.CUSTOMER);
         kevin.setStatus(UserStatus.PENDING);
-        kevin.setCreatedAt(LocalDateTime.now())
+        kevin.setCreatedAt(LocalDateTime.now());
 
         userRepository.save(alice);
         userRepository.save(penderson);

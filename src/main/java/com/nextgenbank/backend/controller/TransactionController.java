@@ -9,10 +9,7 @@ import com.nextgenbank.backend.security.CurrentUser;
 import com.nextgenbank.backend.security.UserPrincipal;
 import com.nextgenbank.backend.service.TransactionService;
 import org.springframework.http.ResponseEntity;
-import jakarta.transaction.Transactional;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -74,7 +71,6 @@ public class TransactionController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-}
 
     @PostMapping("/switch")
     public ResponseEntity<?> switchFunds(@CurrentUser UserPrincipal principal,

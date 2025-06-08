@@ -6,6 +6,7 @@ import com.nextgenbank.backend.model.UserStatus;
 import com.nextgenbank.backend.model.dto.UserDto;
 import com.nextgenbank.backend.repository.UserRepository;
 import com.nextgenbank.backend.security.JwtProvider;
+import com.nextgenbank.backend.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -22,12 +23,15 @@ public class UserControllerTest {
     private UserRepository userRepository;
     private JwtProvider jwtProvider;
     private UserController userController;
+    private UserService userService;
+
 
     @BeforeEach
     void setUp() {
         userRepository = mock(UserRepository.class);
         jwtProvider = mock(JwtProvider.class);
-        userController = new UserController(userRepository, jwtProvider);
+        userService = Mockito.mock(UserService.class);
+        userController = new UserController(userRepository, jwtProvider, userService);
     }
 
     @Test

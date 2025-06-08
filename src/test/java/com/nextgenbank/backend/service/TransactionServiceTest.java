@@ -4,6 +4,7 @@ import com.nextgenbank.backend.model.*;
 import com.nextgenbank.backend.model.dto.TransactionResponseDto;
 import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.TransactionRepository;
+import com.nextgenbank.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -20,13 +21,14 @@ public class TransactionServiceTest {
     private TransactionRepository transactionRepository;
     private TransactionService transactionService;
     private AccountRepository accountRepository;
-    private AccountService accountService;
+    private UserRepository userRepository;
 
     @BeforeEach
     void setUp() {
         transactionRepository = Mockito.mock(TransactionRepository.class);
         accountRepository = Mockito.mock(AccountRepository.class);
-        transactionService = new TransactionService(transactionRepository, accountRepository);
+        userRepository = Mockito.mock(UserRepository.class);
+        transactionService = new TransactionService(transactionRepository, accountRepository, userRepository);
     }
 
     @Test

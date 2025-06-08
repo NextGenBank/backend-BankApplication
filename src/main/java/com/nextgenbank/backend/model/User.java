@@ -21,6 +21,8 @@ public class User {
 
     private String password;
     private String bsnNumber;
+
+    @Column(unique = true)
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)

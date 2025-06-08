@@ -1,8 +1,12 @@
 package com.nextgenbank.backend.model.dto;
 
 public class LoginResponseDto {
+
     private String token;
     private UserDto user;
+
+    public LoginResponseDto() {
+    }
 
     public LoginResponseDto(String token, UserDto user) {
         this.token = token;

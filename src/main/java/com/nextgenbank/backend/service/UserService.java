@@ -24,7 +24,10 @@ public class UserService {
     }
 
     public User authenticate(String email, String password) {
-        User user = userRepository.findByEmail(email)
+        // Normalize email
+        String normalizedEmail = email.toLowerCase();
+
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
@@ -35,15 +38,28 @@ public class UserService {
     }
 
     public void registerUser(RegisterRequestDto request) {
+        // Normalize email
+        String normalizedEmail = request.getEmail().toLowerCase();
+
         // Check if email already exists
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+        if (userRepository.findByEmail(normalizedEmail).isPresent()) {
             throw new IllegalArgumentException("Email already registered");
+        }
+
+        // Check if BSN already exists
+        if (userRepository.findByBsnNumber(request.getBsn()).isPresent()) {
+            throw new IllegalArgumentException("BSN already registered");
+        }
+
+        // Check if phone number already exists
+        if (userRepository.findByPhoneNumber(request.getPhone()).isPresent()) {
+            throw new IllegalArgumentException("Phone number already registered");
         }
 
         User user = new User();
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
-        user.setEmail(request.getEmail());
+        user.setEmail(normalizedEmail); // Save normalized email
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setBsnNumber(request.getBsn());
         user.setPhoneNumber(request.getPhone());

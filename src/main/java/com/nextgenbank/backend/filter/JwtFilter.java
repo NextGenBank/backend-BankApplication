@@ -31,12 +31,17 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/auth") ||
-                path.startsWith("/v3/api-docs") ||
-                path.startsWith("/swagger-ui") ||
-                path.startsWith("/swagger-resources") ||
-                path.equals("/swagger-ui.html") ||
-                path.startsWith("/webjars");
+        return path.startsWith("/auth")
+                || path.startsWith("/api/test")
+                || path.equals("/v3/api-docs")
+                || path.startsWith("/v3/api-docs/")
+                || path.equals("/swagger-ui.html")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/swagger-resources")
+                || path.startsWith("/webjars")
+                || path.startsWith("/configuration")
+                || path.startsWith("/favicon.ico")
+                || path.startsWith("/h2-console");
     }
 
     @Override

@@ -27,8 +27,14 @@ public class TransactionController {
     }
 
     @GetMapping
-    public List<TransactionResponseDto> getUserTransactions(@CurrentUser UserPrincipal principal) {
-        return transactionService.getTransactionsForUser(principal.getUser());
+    public List<TransactionResponseDto> getUserTransactions(
+            @CurrentUser UserPrincipal principal,
+            @RequestParam(required = false) String iban,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String sort
+    ) {
+        return transactionService.getTransactionsForUser(principal.getUser(), iban, name, type, sort);
     }
 
     @PostMapping("/switch")

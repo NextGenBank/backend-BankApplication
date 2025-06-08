@@ -7,6 +7,7 @@ import com.nextgenbank.backend.model.dto.TransactionResponseDto;
 import com.nextgenbank.backend.repository.TransactionRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,10 +20,10 @@ public class TransactionService {
         this.transactionRepository = transactionRepository;
     }
 
-    public List<TransactionResponseDto> getTransactionsForUser(User user) {
+    public List<TransactionResponseDto> getTransactionsForUser(User user, String iban, String name, String type, String sort) {
         Long userId = user.getUserId();
 
-        return transactionRepository.findAll().stream()
+        List<TransactionResponseDto> transactions = transactionRepository.findAll().stream()
                 .filter(txn -> {
                     Account from = txn.getFromAccount();
                     Account to = txn.getToAccount();
@@ -51,14 +52,8 @@ public class TransactionService {
                     boolean isReceiver = txn.getToAccount() != null &&
                             txn.getToAccount().getCustomer().getUserId().equals(userId);
 
-                    String direction;
-                    if (isSender && isReceiver) {
-                        direction = "INTERNAL";
-                    } else if (isSender) {
-                        direction = "OUTGOING";
-                    } else {
-                        direction = "INCOMING";
-                    }
+                    String direction = isSender && isReceiver ? "INTERNAL"
+                            : isSender ? "OUTGOING" : "INCOMING";
 
                     return new TransactionResponseDto(
                             txn.getTransactionId(),
@@ -72,6 +67,36 @@ public class TransactionService {
                             direction
                     );
                 })
+                .filter(dto -> {
+                    if (iban != null && !iban.isBlank()) {
+                        return dto.fromIban().equalsIgnoreCase(iban) || dto.toIban().equalsIgnoreCase(iban);
+                    }
+                    return true;
+                })
+                .filter(dto -> {
+                    if (name != null && !name.isBlank()) {
+                        String fullName = (dto.fromName() + " " + dto.toName()).toLowerCase();
+                        return fullName.contains(name.toLowerCase());
+                    }
+                    return true;
+                })
+                .filter(dto -> {
+                    if (type != null && !type.isBlank()) {
+                        return dto.direction().equalsIgnoreCase(type);
+                    }
+                    return true;
+                })
                 .collect(Collectors.toList());
+
+        // Sorting logic
+        if (sort != null && !sort.isBlank()) {
+            switch (sort.toLowerCase()) {
+                case "recent" -> transactions.sort(Comparator.comparing(TransactionResponseDto::timestamp).reversed());
+                case "amount" -> transactions.sort(Comparator.comparing(TransactionResponseDto::amount).reversed());
+                case "type" -> transactions.sort(Comparator.comparing(t -> t.transactionType().name()));
+            }
+        }
+
+        return transactions;
     }
 }

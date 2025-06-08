@@ -2,6 +2,9 @@ package com.nextgenbank.backend.controller;
 
 import com.nextgenbank.backend.model.dto.TransactionDto;
 import com.nextgenbank.backend.model.dto.TransferRequestDto;
+import com.nextgenbank.backend.model.dto.TransactionResponseDto;
+import com.nextgenbank.backend.security.CurrentUser;
+import com.nextgenbank.backend.security.UserPrincipal;
 import com.nextgenbank.backend.service.TransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +15,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/transactions")
+@CrossOrigin(origins = "http://localhost:5173")
 public class TransactionController {
 
     private final TransactionService transactionService;
@@ -21,10 +25,15 @@ public class TransactionController {
         this.transactionService = transactionService;
     }
 
+    @GetMapping
+    public List<TransactionResponseDto> getUserTransactions(@CurrentUser UserPrincipal principal) {
+        return transactionService.getTransactionsForUser(principal.getUser());
+    }
+
     /**
      * Get all transactions in the system
      */
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<List<TransactionDto>> getAllTransactions() {
         return ResponseEntity.ok(transactionService.getAllTransactions());
     }
@@ -45,8 +54,8 @@ public class TransactionController {
         try {
             TransactionDto transactionDto = transactionService.transferFunds(transferRequestDto);
             return ResponseEntity.ok(Map.of(
-                "message", "Transfer completed successfully",
-                "transaction", transactionDto
+                    "message", "Transfer completed successfully",
+                    "transaction", transactionDto
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

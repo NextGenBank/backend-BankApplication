@@ -17,31 +17,31 @@ public class TransactionDto {
     private String userInitiating;
     private UserRole userRole;
     private TransactionType transactionType;
-    
+
     public TransactionDto() {
     }
-    
+
     public TransactionDto(Transaction transaction) {
         this.transactionId = transaction.getTransactionId();
-        
+
         if (transaction.getFromAccount() != null) {
             this.fromAccount = transaction.getFromAccount().getIBAN();
         }
-        
+
         if (transaction.getToAccount() != null) {
             this.toAccount = transaction.getToAccount().getIBAN();
         }
-        
+
         this.amount = transaction.getAmount();
-        
+
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy - HH:mm");
         this.timestamp = transaction.getTimestamp().format(formatter);
-        
+
         if (transaction.getInitiator() != null) {
             this.userInitiating = transaction.getInitiator().getFirstName() + " " + transaction.getInitiator().getLastName();
             this.userRole = transaction.getInitiator().getRole();
         }
-        
+
         this.transactionType = transaction.getTransactionType();
     }
 

@@ -38,14 +38,14 @@ public class EmployeeService {
     public UserDto getCustomerById(Long customerId) {
         User customer = userRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("Customer not found"));
-        
+
         if (customer.getRole() != UserRole.CUSTOMER) {
             throw new RuntimeException("User is not a customer");
         }
-        
+
         return new UserDto(customer);
     }
-    
+
     /**
      * Approve a customer
      */
@@ -53,15 +53,15 @@ public class EmployeeService {
     public void approveCustomer(Long customerId) {
         User customer = userRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("Customer not found"));
-        
+
         if (customer.getRole() != UserRole.CUSTOMER) {
             throw new RuntimeException("User is not a customer");
         }
-        
+
         if (customer.getStatus() != UserStatus.PENDING) {
             throw new RuntimeException("Customer is not pending approval");
         }
-        
+
         customer.setStatus(UserStatus.APPROVED);
         userRepository.save(customer);
     }

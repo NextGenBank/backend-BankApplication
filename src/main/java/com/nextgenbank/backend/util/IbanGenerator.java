@@ -14,17 +14,17 @@ public class IbanGenerator {
      */
     public static String generateIban() {
         StringBuilder sb = new StringBuilder(COUNTRY_CODE);
-        
+
         // Add two random check digits
         sb.append(String.format("%02d", random.nextInt(100)));
-        
+
         // Add bank code (e.g., ABNA for ABN AMRO)
         sb.append("BANK");
-        
+
         // Add account number with counter to ensure uniqueness
         String uniqueNumber = String.format("%010d", counter++);
         sb.append(uniqueNumber);
-        
+
         return sb.toString();
     }
 }

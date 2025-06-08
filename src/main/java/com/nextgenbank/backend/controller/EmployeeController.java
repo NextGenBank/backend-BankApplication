@@ -47,14 +47,14 @@ public class EmployeeController {
     public ResponseEntity<?> transferFunds(@RequestBody TransferRequestDto transferRequestDto) {
         try {
             return ResponseEntity.ok(Map.of(
-                "message", "Transfer completed successfully",
-                "transaction", transactionService.transferFunds(transferRequestDto)
+                    "message", "Transfer completed successfully",
+                    "transaction", transactionService.transferFunds(transferRequestDto)
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-    
+
     /**
      * Approve a customer
      */

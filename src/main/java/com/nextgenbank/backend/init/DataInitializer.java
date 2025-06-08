@@ -183,8 +183,6 @@ public class DataInitializer implements CommandLineRunner {
         transactionRepository.save(txn3);
         transactionRepository.save(txn4);
 
-        // Inside your run() method, after setting up Alice, Bob, Charlie, and NewUser...
-
 // Dana (only incoming transactions)
         User dana = new User();
         dana.setFirstName("Dana");

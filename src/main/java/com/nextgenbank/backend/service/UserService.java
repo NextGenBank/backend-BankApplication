@@ -51,6 +51,11 @@ public class UserService {
             throw new IllegalArgumentException("BSN already registered");
         }
 
+        // Check if phone number already exists
+        if (userRepository.findByPhoneNumber(request.getPhone()).isPresent()) {
+            throw new IllegalArgumentException("Phone number already registered");
+        }
+
         User user = new User();
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());

@@ -133,4 +133,98 @@ public class CustomerTransactionSteps {
             fail("Failed to parse transactions: " + e.getMessage());
         }
     }
+
+    // filter transactions
+
+    @When("the customer filters transactions by IBAN {string}")
+    public void the_customer_filters_transactions_by_iban(String iban) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(authToken);
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        latestResponse = restTemplate.exchange(
+                "/api/transactions?iban=" + iban, HttpMethod.GET, entity, String.class);
+    }
+
+    @Then("the response should contain only transactions involving IBAN {string}")
+    public void the_response_should_contain_only_transactions_involving_iban(String iban) {
+        assertNotNull(latestResponse);
+        assertEquals(HttpStatus.OK, latestResponse.getStatusCode());
+
+        try {
+            List<TransactionResponseDto> transactions = objectMapper.readValue(
+                    latestResponse.getBody(),
+                    new TypeReference<>() {}
+            );
+
+            for (TransactionResponseDto txn : transactions) {
+                assertTrue(txn.fromIban().equals(iban) || txn.toIban().equals(iban),
+                        "Transaction does not involve expected IBAN: " + iban);
+            }
+        } catch (Exception e) {
+            fail("Failed to parse transactions: " + e.getMessage());
+        }
+    }
+
+    @When("the customer filters transactions by name {string}")
+    public void the_customer_filters_transactions_by_name(String name) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(authToken);
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        latestResponse = restTemplate.exchange(
+                "/api/transactions?name=" + name, HttpMethod.GET, entity, String.class);
+    }
+
+    @Then("the response should contain only transactions involving name {string}")
+    public void the_response_should_contain_only_transactions_involving_name(String name) {
+        assertNotNull(latestResponse);
+        assertEquals(HttpStatus.OK, latestResponse.getStatusCode());
+
+        try {
+            List<TransactionResponseDto> transactions = objectMapper.readValue(
+                    latestResponse.getBody(),
+                    new TypeReference<>() {}
+            );
+
+            for (TransactionResponseDto txn : transactions) {
+                boolean fromMatch = txn.fromName().toLowerCase().contains(name.toLowerCase());
+                boolean toMatch = txn.toName().toLowerCase().contains(name.toLowerCase());
+                assertTrue(fromMatch || toMatch, "Transaction does not involve expected name: " + name);
+            }
+        } catch (Exception e) {
+            fail("Failed to parse transactions: " + e.getMessage());
+        }
+    }
+
+    @When("the customer filters transactions by type {string}")
+    public void the_customer_filters_transactions_by_type(String type) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(authToken);
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        latestResponse = restTemplate.exchange(
+                "/api/transactions?type=" + type, HttpMethod.GET, entity, String.class);
+    }
+
+    @Then("the response should contain only transactions of type {string}")
+    public void the_response_should_contain_only_transactions_of_type(String type) {
+        assertNotNull(latestResponse);
+        assertEquals(HttpStatus.OK, latestResponse.getStatusCode());
+
+        try {
+            List<TransactionResponseDto> transactions = objectMapper.readValue(
+                    latestResponse.getBody(),
+                    new TypeReference<>() {}
+            );
+
+            for (TransactionResponseDto txn : transactions) {
+                assertEquals(type.toUpperCase(), txn.direction().toUpperCase(),
+                        "Transaction type mismatch. Expected: " + type + ", Found: " + txn.direction());
+            }
+        } catch (Exception e) {
+            fail("Failed to parse transactions: " + e.getMessage());
+        }
+    }
+
 }

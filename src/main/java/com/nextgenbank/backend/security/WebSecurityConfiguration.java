@@ -26,7 +26,7 @@ public class WebSecurityConfiguration {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, CustomAuthEntryPoint authEntryPoint) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -38,6 +38,7 @@ public class WebSecurityConfiguration {
                         .requestMatchers(
                                 "/auth/**",
                                 "/h2-console/**",
+                                "/api/test/user-exists",
                                 "/v3/api-docs",
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html",
@@ -48,11 +49,13 @@ public class WebSecurityConfiguration {
                                 "/favicon.ico"
                         ).permitAll()
                         .requestMatchers("/api/user/me").hasAnyRole("CUSTOMER", "EMPLOYEE")
+                        .requestMatchers("/api/test/**").permitAll()
                         .requestMatchers("/api/accounts/my").hasRole("CUSTOMER")
                         .requestMatchers("/api/accounts/lookup").hasRole("CUSTOMER")
-                        .requestMatchers("/api/transactions").hasRole("CUSTOMER")
+                        .requestMatchers("/api/transactions/**").hasRole("CUSTOMER")
                         .anyRequest().authenticated()
                 )
+                .exceptionHandling(e -> e.authenticationEntryPoint(authEntryPoint)) // 👈 This line!
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -77,5 +80,4 @@ public class WebSecurityConfiguration {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
-
 }

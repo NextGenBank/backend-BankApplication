@@ -6,7 +6,7 @@ Feature: Registering with duplicate email
       | lastName  | Doe                     |
       | email     | duplicate@example.com   |
       | password  | pass123                 |
-      | bsn       | 123456789               |
+      | bsn       | 111222334               |
       | phone     | 0612345678              |
     Then the response status should be 200
 
@@ -15,6 +15,6 @@ Feature: Registering with duplicate email
       | lastName  | User                    |
       | email     | duplicate@example.com   |
       | password  | pass456                 |
-      | bsn       | 987654321               |
+      | bsn       | 444555667               |
       | phone     | 0612345679              |
     Then the response status should be 400

@@ -38,14 +38,14 @@ Feature: Registration edge case validation
       | password  | pass123           |
       | bsn       | 123456789         |
       | phone     | 0612345678        |
-    Then the response status should be 200
+    Then the response status should be 400
 
   Scenario: Email with uppercase letters
     Given I register with:
       | firstName | Upper             |
       | lastName  | Case              |
-      | email     | UpperCase@EXAMPLE.COM |
+      | email     | UNIQUEUPPER@EXAMPLE.COM |
       | password  | pass123           |
-      | bsn       | 123456789         |
-      | phone     | 0612345678        |
+      | bsn       | 222333447         |
+      | phone     | 0612333444        |
     Then the response status should be 200

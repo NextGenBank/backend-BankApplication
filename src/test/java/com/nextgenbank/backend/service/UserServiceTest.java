@@ -4,6 +4,7 @@ import com.nextgenbank.backend.model.User;
 import com.nextgenbank.backend.model.UserRole;
 import com.nextgenbank.backend.model.UserStatus;
 import com.nextgenbank.backend.model.dto.RegisterRequestDto;
+import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,12 +23,14 @@ public class UserServiceTest {
     private UserRepository userRepository;
     private PasswordEncoder passwordEncoder;
     private UserService userService;
+    private AccountRepository accountRepository;
+
 
     @BeforeEach
     void setUp() {
         userRepository = Mockito.mock(UserRepository.class);
         passwordEncoder = Mockito.mock(PasswordEncoder.class);
-        userService = new UserService(userRepository, passwordEncoder);
+        userService = new UserService(userRepository, passwordEncoder, accountRepository);
     }
 
     // Test for registering a user successfully

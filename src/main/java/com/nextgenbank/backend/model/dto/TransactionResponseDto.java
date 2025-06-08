@@ -14,5 +14,5 @@ public record TransactionResponseDto(
         String fromName,
         String toIban,
         String toName,
-        String direction 
+        String direction
 ) {}

@@ -1,6 +1,7 @@
 package com.nextgenbank.backend.repository;
 
 import com.nextgenbank.backend.model.User;
+import com.nextgenbank.backend.model.UserRole;
 import com.nextgenbank.backend.model.UserStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -13,4 +14,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByBsnNumber(String bsnNumber);
 
     List<User> findByFirstNameIgnoreCaseAndLastNameIgnoreCaseAndStatus(String firstName, String lastName, UserStatus userStatus);
+    List<User> findByRole(UserRole role);
 }

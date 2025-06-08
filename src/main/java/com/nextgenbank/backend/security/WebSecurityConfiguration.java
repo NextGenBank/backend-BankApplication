@@ -47,7 +47,7 @@ public class WebSecurityConfiguration {
                         .requestMatchers("/api/user/me").hasAnyRole("CUSTOMER", "EMPLOYEE")
                         .requestMatchers("/api/accounts/my").hasRole("CUSTOMER")
                         .requestMatchers("/api/accounts/lookup").hasRole("CUSTOMER")
-                        .requestMatchers("/api/transactions").hasRole("CUSTOMER")
+                        .requestMatchers("/api/transactions/**").hasRole("CUSTOMER")
                         .anyRequest().authenticated()
                 )
 

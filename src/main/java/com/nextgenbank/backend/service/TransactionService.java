@@ -2,8 +2,11 @@ package com.nextgenbank.backend.service;
 
 import com.nextgenbank.backend.model.*;
 import com.nextgenbank.backend.model.dto.SwitchFundsRequestDto;
+import com.nextgenbank.backend.model.dto.SwitchFundsResponseDto;
 import com.nextgenbank.backend.model.dto.TransactionResponseDto;
+import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.TransactionRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,9 +16,12 @@ import java.util.stream.Collectors;
 public class TransactionService {
 
     private final TransactionRepository transactionRepository;
+    private final AccountRepository accountRepository;
 
-    public TransactionService(TransactionRepository transactionRepository) {
+
+    public TransactionService(TransactionRepository transactionRepository, AccountRepository accountRepository) {
         this.transactionRepository = transactionRepository;
+        this.accountRepository = accountRepository;
     }
 
     public List<TransactionResponseDto> getTransactionsForUser(User user) {
@@ -43,32 +49,30 @@ public class TransactionService {
                 .collect(Collectors.toList());
     }
 
-    public void switchFunds(User user, SwitchFundsRequestDto request) {
+    @Transactional
+    public SwitchFundsResponseDto switchFunds(User user, SwitchFundsRequestDto request){
+
         if (user.getRole() != UserRole.CUSTOMER) {
             throw new IllegalStateException("Only customers can switch funds.");
         }
 
-        List<Account> accounts = user.getAccountsOwned();
-
-        Account main = accounts.stream()
-                .filter(a -> a.getAccountType() == AccountType.CHECKING)
-                .findFirst()
+        Account checking = accountRepository
+                .findByCustomerUserIdAndAccountType(user.getUserId(), AccountType.CHECKING)
                 .orElseThrow(() -> new IllegalStateException("Checking account not found"));
 
-        Account savings = accounts.stream()
-                .filter(a -> a.getAccountType() == AccountType.SAVINGS)
-                .findFirst()
+        Account savings = accountRepository
+                .findByCustomerUserIdAndAccountType(user.getUserId(), AccountType.SAVINGS)
                 .orElseThrow(() -> new IllegalStateException("Savings account not found"));
 
-        Account from;
-        Account to;
 
-        if ("MAIN".equalsIgnoreCase(request.getFrom())) {
-            from = main;
+        Account from, to;
+
+        if ("CHECKING".equalsIgnoreCase(request.getFrom())) {
+            from = checking;
             to = savings;
         } else if ("SAVINGS".equalsIgnoreCase(request.getFrom())) {
             from = savings;
-            to = main;
+            to = checking;
         } else {
             throw new IllegalArgumentException("Invalid source account: " + request.getFrom());
         }
@@ -80,6 +84,9 @@ public class TransactionService {
         from.setBalance(from.getBalance().subtract(request.getAmount()));
         to.setBalance(to.getBalance().add(request.getAmount()));
 
+        accountRepository.save(from);
+        accountRepository.save(to);
+
         Transaction transaction = new Transaction();
         transaction.setTransactionType(TransactionType.TRANSFER);
         transaction.setAmount(request.getAmount());
@@ -89,7 +96,7 @@ public class TransactionService {
         transaction.setInitiator(user);
 
         transactionRepository.save(transaction);
+
+        return new SwitchFundsResponseDto(checking.getBalance(), savings.getBalance());
     }
-
-
 }

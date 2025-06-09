@@ -17,6 +17,8 @@
 	<description>Backend for the Code Generation project</description>
 	<properties>
 		<java.version>21</java.version>
+		<cucumber.version>7.14.0</cucumber.version>
+		<junit.platform.version>1.11.4</junit.platform.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -51,34 +53,46 @@
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>2.5.0</version>
 		</dependency>
+
+		<!-- Тестовые зависимости -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>io.cucumber</groupId>
 			<artifactId>cucumber-java</artifactId>
-			<version>7.14.0</version>
+			<version>${cucumber.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>io.cucumber</groupId>
 			<artifactId>cucumber-spring</artifactId>
-			<version>7.14.0</version>
+			<version>${cucumber.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>io.cucumber</groupId>
 			<artifactId>cucumber-junit</artifactId>
-			<version>7.14.0</version>
+			<version>${cucumber.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>io.cucumber</groupId>
 			<artifactId>cucumber-junit-platform-engine</artifactId>
-			<version>7.14.0</version>
+			<version>${cucumber.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.junit.platform</groupId>
 			<artifactId>junit-platform-suite</artifactId>
-			<version>1.10.1</version>
+			<version>${junit.platform.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.platform</groupId>
+			<artifactId>junit-platform-launcher</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -97,6 +111,8 @@
 			<version>5.2.0</version>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- JWT зависимости -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
@@ -114,6 +130,8 @@
 			<version>0.11.5</version>
 			<scope>runtime</scope>
 		</dependency>
+
+		<!-- Валидация -->
 		<dependency>
 			<groupId>jakarta.validation</groupId>
 			<artifactId>jakarta.validation-api</artifactId>

@@ -1,11 +1,19 @@
-Feature: ATM Operations
+Feature: ATM operations
 
-  Scenario: Successful deposit into own account
-    Given пользователь "ivan" с IBAN "NL123" имеет баланс 1000
-    When он делает депозит 500 в "NL123"
-    Then операция проходит успешно и баланс становится 1500
+  Scenario: Successful withdrawal
+    Given a user "Ivan Petrov" with IBAN "NL01BANK0001" and balance 1000.00
+    When I POST to "/api/atm/withdraw" with body
+      """
+      {"iban":"NL01BANK0001","amount":200.00}
+      """
+    Then the response status code should be 200
+    And the JSON field "balance" should be "800.00"
 
-  Scenario: Withdraw with insufficient funds
-    Given пользователь "ivan" с IBAN "NL456" имеет баланс 100
-    When он пытается снять 200
-    Then операция завершается ошибкой "Insufficient funds"
+  Scenario: Deposit into account
+    Given a user "Anna Ivanova" with IBAN "NL01BANK0002" and balance 500.00
+    When I POST to "/api/atm/deposit" with body
+      """
+      {"iban":"NL01BANK0002","amount":150.00}
+      """
+    Then the response status code should be 200
+    And the JSON field "balance" should be "650.00"

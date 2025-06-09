@@ -37,28 +37,19 @@ public class TransactionController {
         return transactionService.getTransactionsForUser(principal.getUser(), iban, name, type, sort);
     }
 
-    /**
-     * GET /api/transactions/all
-     * Возвращает список всех транзакций (DTO).
-     */
+
     @GetMapping("/all")
     public ResponseEntity<List<TransactionDto>> getAllTransactions() {
         return ResponseEntity.ok(transactionService.getAllTransactions());
     }
 
-    /**
-     * GET /api/transactions/customer/{customerId}
-     * Возвращает все транзакции заданного клиента.
-     */
+
     @GetMapping("/customer/{customerId}")
     public ResponseEntity<List<TransactionDto>> getCustomerTransactions(@PathVariable Long customerId) {
         return ResponseEntity.ok(transactionService.getTransactionsByCustomerId(customerId));
     }
 
-    /**
-     * POST /api/transactions/transfer
-     * Обрабатывает перевод средств между счетами.
-     */
+
     @PostMapping("/transfer")
     public ResponseEntity<?> transferFunds(@RequestBody TransferRequestDto transferRequestDto) {
         try {

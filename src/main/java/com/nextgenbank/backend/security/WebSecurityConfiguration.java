@@ -52,7 +52,9 @@ public class WebSecurityConfiguration {
                         .requestMatchers("/api/test/**").permitAll()
                         .requestMatchers("/api/accounts/my").hasRole("CUSTOMER")
                         .requestMatchers("/api/accounts/lookup").hasRole("CUSTOMER")
-                        .requestMatchers("/api/transactions/**").hasRole("CUSTOMER")
+                        .requestMatchers("/api/transactions/switch").hasRole("CUSTOMER")
+                        .requestMatchers("/api/transactions").hasRole("CUSTOMER")
+                        .requestMatchers("/api/employees/**").hasRole("EMPLOYEE")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(e -> e.authenticationEntryPoint(authEntryPoint)) // 👈 This line!

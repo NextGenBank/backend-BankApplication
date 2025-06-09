@@ -220,22 +220,38 @@ public class TransactionService {
             throw new RuntimeException("Insufficient funds");
         }
 
-        // Check if the transfer would go below absolute transfer limit
+        // Check if the transfer would exceed the absolute transfer limit
         if (fromAccount.getAbsoluteTransferLimit() != null) {
-            // The absolute transfer limit is the MINIMUM balance allowed after transfer
-            logger.info("Checking transfer limit: Current balance: {}, Transfer amount: {}, " +
-                            "Balance after transfer: {}, Absolute limit: {}",
-                    fromAccount.getBalance(), amount, balanceAfterTransfer,
+            // The absolute transfer limit is the MAXIMUM amount that can be transferred daily
+            BigDecimal dailyTransferAmount = fromAccount.getDailyTransferAmount() != null ? 
+                    fromAccount.getDailyTransferAmount() : BigDecimal.ZERO;
+            
+            // Calculate new daily transfer amount if this transfer goes through
+            BigDecimal newDailyTransferAmount = dailyTransferAmount.add(amount);
+            
+            logger.info("Checking transfer limit: Current daily transfer: {}, This transfer: {}, " +
+                         "Total would be: {}, Daily limit: {}",
+                    dailyTransferAmount, amount, newDailyTransferAmount,
                     fromAccount.getAbsoluteTransferLimit());
-
-            // Only fail if balance after transfer would be BELOW the limit
-            if (balanceAfterTransfer.compareTo(fromAccount.getAbsoluteTransferLimit()) < 0) {
-                logger.warn("Transfer rejected: Would go below transfer limit. " +
-                                "Balance after transfer: {}, Limit: {}",
-                        balanceAfterTransfer, fromAccount.getAbsoluteTransferLimit());
-                throw new RuntimeException("Transfer would go below the absolute transfer limit of " +
-                        fromAccount.getAbsoluteTransferLimit());
+            
+            // Only fail if this transfer would exceed the daily limit
+            if (newDailyTransferAmount.compareTo(fromAccount.getAbsoluteTransferLimit()) > 0) {
+                logger.warn("Transfer rejected: Would exceed daily transfer limit. " +
+                            "Current daily amount: {}, This transfer: {}, Daily limit: {}",
+                        dailyTransferAmount, amount, fromAccount.getAbsoluteTransferLimit());
+                
+                // Calculate remaining amount allowed today
+                BigDecimal remainingAllowed = fromAccount.getAbsoluteTransferLimit().subtract(dailyTransferAmount);
+                if (remainingAllowed.compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new RuntimeException("Daily transfer limit reached. No more transfers allowed today.");
+                } else {
+                    throw new RuntimeException("Transfer would exceed daily limit. Maximum transfer allowed today: " + 
+                            remainingAllowed);
+                }
             }
+            
+            // Update the daily transfer amount for this account
+            fromAccount.setDailyTransferAmount(newDailyTransferAmount);
         }
     }
 
@@ -289,4 +305,17 @@ public class TransactionService {
 
         return new SwitchFundsResponseDto(checking.getBalance(), savings.getBalance());
         }
+    
+    /**
+     * Get pending transactions in the system
+     * For the dashboard metrics
+     */
+    public List<TransactionDto> getPendingTransactions() {
+        // Currently just using transactions with amount = 0 as a proxy for pending
+        // This should be replaced with actual pending transaction logic
+        return transactionRepository.findAll().stream()
+                .filter(transaction -> transaction.getAmount().compareTo(BigDecimal.ZERO) == 0)
+                .map(TransactionDto::new)
+                .collect(Collectors.toList());
+    }
     }

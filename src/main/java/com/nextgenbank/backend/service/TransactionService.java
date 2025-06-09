@@ -1,32 +1,24 @@
-// src/main/java/com/nextgenbank/backend/service/TransactionService.java
 package com.nextgenbank.backend.service;
 
-import com.nextgenbank.backend.controller.ATMController;
-import com.nextgenbank.backend.model.Account;
-import com.nextgenbank.backend.model.Transaction;
-import com.nextgenbank.backend.model.TransactionType;
+import com.nextgenbank.backend.model.*;
 import com.nextgenbank.backend.model.dto.TransactionDto;
 import com.nextgenbank.backend.model.dto.TransferRequestDto;
-import com.nextgenbank.backend.repository.AccountRepository;
-import com.nextgenbank.backend.model.User;
 import com.nextgenbank.backend.repository.UserRepository;
+import com.nextgenbank.backend.model.dto.SwitchFundsRequestDto;
+import com.nextgenbank.backend.model.dto.SwitchFundsResponseDto;
 import com.nextgenbank.backend.model.dto.TransactionResponseDto;
+import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.TransactionRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.*;
-
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
 
 @Service
 public class TransactionService {
@@ -36,8 +28,6 @@ public class TransactionService {
     private final UserRepository userRepository;
     private static final Logger logger = LoggerFactory.getLogger(TransactionService.class);
 
-
-
     public TransactionService(TransactionRepository transactionRepository, AccountRepository accountRepository,
                               UserRepository userRepository) {
         this.transactionRepository = transactionRepository;
@@ -45,43 +35,41 @@ public class TransactionService {
         this.userRepository = userRepository;
     }
 
-    public List<TransactionResponseDto> getTransactionsForUser(User user) {
+    public List<TransactionResponseDto> getTransactionsForUser(User user, String iban, String name, String type, String sort) {
         Long userId = user.getUserId();
 
-        return transactionRepository.findAllByUserId(userId).stream()
+        List<TransactionResponseDto> transactions = transactionRepository.findAll().stream()
+                .filter(txn -> {
+                    Account from = txn.getFromAccount();
+                    Account to = txn.getToAccount();
+
+                    return (from != null && from.getCustomer().getUserId().equals(userId)) ||
+                            (to != null && to.getCustomer().getUserId().equals(userId));
+                })
                 .map(txn -> {
-                    // --- Собираем fromIban и fromName ---
                     String fromIban = "N/A";
                     String fromName = "Bank";
                     if (txn.getFromAccount() != null) {
                         fromIban = txn.getFromAccount().getIBAN();
-                        fromName = txn.getFromAccount().getCustomer().getFirstName() + " " +
-                                txn.getFromAccount().getCustomer().getLastName();
+                        User sender = txn.getFromAccount().getCustomer();
+                        fromName = sender.getFirstName() + " " + sender.getLastName();
                     }
 
-                    // --- Собираем toIban и toName ---
                     String toIban = "N/A";
                     String toName = "Unknown";
                     if (txn.getToAccount() != null) {
                         toIban = txn.getToAccount().getIBAN();
-                        toName = txn.getToAccount().getCustomer().getFirstName() + " " +
-                                txn.getToAccount().getCustomer().getLastName();
+                        User receiver = txn.getToAccount().getCustomer();
+                        toName = receiver.getFirstName() + " " + receiver.getLastName();
                     }
 
-                    // --- Определяем направление (direction) ---
-                    boolean isSender   = txn.getFromAccount() != null &&
+                    boolean isSender = txn.getFromAccount() != null &&
                             txn.getFromAccount().getCustomer().getUserId().equals(userId);
-                    boolean isReceiver = txn.getToAccount()   != null &&
+                    boolean isReceiver = txn.getToAccount() != null &&
                             txn.getToAccount().getCustomer().getUserId().equals(userId);
 
-                    String direction;
-                    if (isSender && isReceiver) {
-                        direction = "INTERNAL";
-                    } else if (isSender) {
-                        direction = "OUTGOING";
-                    } else {
-                        direction = "INCOMING";
-                    }
+                    String direction = isSender && isReceiver ? "INTERNAL"
+                            : isSender ? "OUTGOING" : "INCOMING";
 
                     return new TransactionResponseDto(
                             txn.getTransactionId(),
@@ -95,8 +83,40 @@ public class TransactionService {
                             direction
                     );
                 })
+                .filter(dto -> {
+                    if (iban != null && !iban.isBlank()) {
+                        return dto.fromIban().equalsIgnoreCase(iban) || dto.toIban().equalsIgnoreCase(iban);
+                    }
+                    return true;
+                })
+                .filter(dto -> {
+                    if (name != null && !name.isBlank()) {
+                        String fullName = (dto.fromName() + " " + dto.toName()).toLowerCase();
+                        return fullName.contains(name.toLowerCase());
+                    }
+                    return true;
+                })
+                .filter(dto -> {
+                    if (type != null && !type.isBlank()) {
+                        return dto.direction().equalsIgnoreCase(type);
+                    }
+                    return true;
+                })
                 .collect(Collectors.toList());
+
+        // Sorting logic
+        if (sort != null && !sort.isBlank()) {
+            switch (sort.toLowerCase()) {
+                case "recent" -> transactions.sort(Comparator.comparing(TransactionResponseDto::timestamp).reversed());
+                case "amount" -> transactions.sort(Comparator.comparing(TransactionResponseDto::amount).reversed());
+                case "type" -> transactions.sort(Comparator.comparing(t -> t.transactionType().name()));
+            }
+        }
+
+        return transactions;
+
     }
+
     public List<TransactionDto> getAllTransactions() {
         return transactionRepository.findAllByOrderByTimestampDesc()
                 .stream()
@@ -120,7 +140,7 @@ public class TransactionService {
     /**
      * Process a transfer between two accounts
      */
-    @Transactional
+    @org.springframework.transaction.annotation.Transactional
     public TransactionDto transferFunds(TransferRequestDto transferRequestDto) {
         logger.info("Processing transfer request: {}", transferRequestDto);
 
@@ -218,4 +238,55 @@ public class TransactionService {
             }
         }
     }
-}
+
+    @Transactional
+    public SwitchFundsResponseDto switchFunds(User user, SwitchFundsRequestDto request){
+
+        if (user.getRole() != UserRole.CUSTOMER) {
+            throw new IllegalStateException("Only customers can switch funds.");
+        }
+
+        Account checking = accountRepository
+                .findByCustomerUserIdAndAccountType(user.getUserId(), AccountType.CHECKING)
+                .orElseThrow(() -> new IllegalStateException("Checking account not found"));
+
+        Account savings = accountRepository
+                .findByCustomerUserIdAndAccountType(user.getUserId(), AccountType.SAVINGS)
+                .orElseThrow(() -> new IllegalStateException("Savings account not found"));
+
+
+        Account from, to;
+
+        if ("CHECKING".equalsIgnoreCase(request.getFrom())) {
+            from = checking;
+            to = savings;
+        } else if ("SAVINGS".equalsIgnoreCase(request.getFrom())) {
+            from = savings;
+            to = checking;
+        } else {
+            throw new IllegalArgumentException("Invalid source account: " + request.getFrom());
+        }
+
+        if (from.getBalance().compareTo(request.getAmount()) < 0) {
+            throw new IllegalStateException("Insufficient balance");
+        }
+
+        from.setBalance(from.getBalance().subtract(request.getAmount()));
+        to.setBalance(to.getBalance().add(request.getAmount()));
+
+        accountRepository.save(from);
+        accountRepository.save(to);
+
+        Transaction transaction = new Transaction();
+        transaction.setTransactionType(TransactionType.TRANSFER);
+        transaction.setAmount(request.getAmount());
+        transaction.setFromAccount(from);
+        transaction.setToAccount(to);
+        transaction.setTimestamp(LocalDateTime.now());
+        transaction.setInitiator(user);
+
+        transactionRepository.save(transaction);
+
+        return new SwitchFundsResponseDto(checking.getBalance(), savings.getBalance());
+        }
+    }

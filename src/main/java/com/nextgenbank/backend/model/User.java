@@ -21,6 +21,8 @@ public class User {
 
     private String password;
     private String bsnNumber;
+
+    @Column(unique = true)
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)
@@ -126,4 +128,11 @@ public class User {
         this.createdAt = createdAt;
     }
 
+    public List<Account> getAccountsOwned() {
+        return accountsOwned;
+    }
+
+    public void setAccountsOwned(List<Account> accountsOwned) {
+        this.accountsOwned = accountsOwned;
+    }
 }

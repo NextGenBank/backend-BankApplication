@@ -7,7 +7,6 @@ import com.nextgenbank.backend.model.dto.UserDto;
 import com.nextgenbank.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -49,20 +48,20 @@ public class EmployeeService {
     /**
      * Approve a customer
      */
-    @Transactional
     public void approveCustomer(Long customerId) {
-        User customer = userRepository.findById(customerId)
-                .orElseThrow(() -> new RuntimeException("Customer not found"));
+        User user = userRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setStatus(UserStatus.APPROVED);
+        userRepository.save(user);
+    }
 
-        if (customer.getRole() != UserRole.CUSTOMER) {
-            throw new RuntimeException("User is not a customer");
-        }
-
-        if (customer.getStatus() != UserStatus.PENDING) {
-            throw new RuntimeException("Customer is not pending approval");
-        }
-
-        customer.setStatus(UserStatus.APPROVED);
-        userRepository.save(customer);
+    /**
+     * Reject a customer
+     */
+    public void rejectCustomer(Long customerId) {
+        User user = userRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setStatus(UserStatus.REJECTED);
+        userRepository.save(user);
     }
 }

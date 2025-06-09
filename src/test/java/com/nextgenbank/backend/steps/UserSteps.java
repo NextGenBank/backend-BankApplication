@@ -56,15 +56,26 @@ public class UserSteps {
         HttpEntity<String> request = new HttpEntity<>(body, headers);
         response = restTemplate.postForEntity("/auth/login", request, String.class);
     }
+//
+//    @When("I GET {string}")
+//    public void i_get(String endpoint) {
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.setBearerAuth(jwtToken);
+//        HttpEntity<Void> request = new HttpEntity<>(headers);
+//
+//        response = restTemplate.exchange(endpoint, HttpMethod.GET, request, String.class);
+//    }
+@When("I GET {string}")
+public void i_get(String endpoint) {
+    HttpHeaders headers = new HttpHeaders();
 
-    @When("I GET {string}")
-    public void i_get(String endpoint) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(jwtToken);
-        HttpEntity<Void> request = new HttpEntity<>(headers);
-
-        response = restTemplate.exchange(endpoint, HttpMethod.GET, request, String.class);
+    if (jwtToken != null && !jwtToken.isBlank()) {
+        headers.setBearerAuth(jwtToken); // Only send Authorization if logged in
     }
+
+    HttpEntity<Void> request = new HttpEntity<>(headers);
+    response = restTemplate.exchange(endpoint, HttpMethod.GET, request, String.class);
+}
 
     // Registration Tests
 
@@ -128,4 +139,28 @@ public class UserSteps {
         assertEquals(200, result.getStatusCodeValue());
         assertTrue(Boolean.TRUE.equals(result.getBody()), "User with email " + email + " should exist");
     }
+    @Then("the response should contain {string}")
+    public void the_response_should_contain(String expectedContent) {
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().toLowerCase().contains(expectedContent.toLowerCase()),
+                "Response should contain (case-insensitive): " + expectedContent + "\n\nActual response:\n" + response.getBody());
+    }
+
+    @Then("the response should contain a transaction with type {string}")
+    public void the_response_should_contain_transaction_type(String type) {
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("\"transactionType\":\"" + type + "\""),
+                "Expected transaction type: " + type + "\nActual response:\n" + response.getBody());
+    }
+
+    @Then("the response should include both {string} and {string}")
+    public void the_response_should_include_both(String field1, String field2) {
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains(field1),
+                "Expected field: " + field1 + " not found.\nResponse:\n" + response.getBody());
+        assertTrue(response.getBody().contains(field2),
+                "Expected field: " + field2 + " not found.\nResponse:\n" + response.getBody());
+    }
+
+
 }

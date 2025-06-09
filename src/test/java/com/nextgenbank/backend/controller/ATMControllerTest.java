@@ -1,12 +1,10 @@
 // src/test/java/com/nextgenbank/backend/controller/ATMControllerTest.java
-package com.nextgenbank.backend.controllers;
+package com.nextgenbank.backend.controller;
 
-import com.nextgenbank.backend.controller.ATMController;
 import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.Transaction;
 import com.nextgenbank.backend.model.TransactionType;
 import com.nextgenbank.backend.model.User;
-import com.nextgenbank.backend.model.dto.TransactionDto;
 import com.nextgenbank.backend.security.UserPrincipal;
 import com.nextgenbank.backend.service.ATMService;
 import org.junit.jupiter.api.Test;

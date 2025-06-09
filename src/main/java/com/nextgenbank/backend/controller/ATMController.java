@@ -1,4 +1,4 @@
-// src/main/java/com/nextgenbank/backend/controller/ATMController.java
+
 package com.nextgenbank.backend.controller;
 
 import com.nextgenbank.backend.model.Transaction;
@@ -22,14 +22,7 @@ public class ATMController {
         this.atmService = atmService;
     }
 
-    /**
-     * POST /api/atm/deposit
-     * Тело запроса:
-     * {
-     *   "toIban": "NL09876543210987654321",
-     *   "amount": 1000.00
-     * }
-     */
+
     @PostMapping("/deposit")
     public ResponseEntity<?> createDeposit(
             @RequestBody TransactionDto dto,
@@ -55,8 +48,8 @@ public class ATMController {
                     tx.getTransactionType(),
                     tx.getAmount(),
                     tx.getTimestamp(),
-                    null,            // fromIban отсутствует при депозите
-                    null,            // fromName отсутствует при депозите
+                    null,
+                    null,
                     tx.getToAccount().getIBAN(),
                     toName,
                     direction
@@ -66,15 +59,7 @@ public class ATMController {
         }
     }
 
-    /**
-     * POST /api/atm/withdraw
-     * Тело запроса:
-     * {
-     *   "fromIban": "NL1234567890",
-     *   "amount": 200.00,
-     *   "bills": 50    // опционально
-     * }
-     */
+
     @PostMapping("/withdraw")
     public ResponseEntity<?> createWithdraw(
             @RequestBody TransactionDto dto,
@@ -103,8 +88,8 @@ public class ATMController {
                     tx.getTimestamp(),
                     tx.getFromAccount().getIBAN(),
                     fromName,
-                    null,            // toIban отсутствует при снятии
-                    null,            // toName отсутствует при снятии
+                    null,
+                    null,
                     direction
             ));
         } catch (IllegalArgumentException ex) {

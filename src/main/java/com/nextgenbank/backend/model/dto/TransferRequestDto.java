@@ -11,7 +11,7 @@ public class TransferRequestDto {
     private String description;
     private Long initiatorId;
 
-    // Getters and Setters
+
     public String getFromAccount() {
         return fromAccount;
     }

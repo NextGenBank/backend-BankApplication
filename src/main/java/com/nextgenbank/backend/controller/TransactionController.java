@@ -76,4 +76,13 @@ public class TransactionController {
                     .body(Map.of("message", "Unexpected error occurred."));
         }
     }
+    
+    /**
+     * GET /api/transactions/pending
+     * Returns a list of pending transactions
+     */
+    @GetMapping("/pending")
+    public ResponseEntity<List<TransactionDto>> getPendingTransactions() {
+        return ResponseEntity.ok(transactionService.getPendingTransactions());
+    }
 }

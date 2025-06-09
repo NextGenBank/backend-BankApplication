@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/accounts")
@@ -82,5 +84,31 @@ public class AccountController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+    
+    /**
+     * Get all accounts with customer information
+     * Returns accounts with embedded customer data for more efficient frontend rendering
+     */
+    @GetMapping("/all-with-customers")
+    public ResponseEntity<List<Map<String, Object>>> getAllAccountsWithCustomers() {
+        List<Account> accounts = accountService.getAllAccounts();
+        List<Map<String, Object>> result = accounts.stream()
+            .map(account -> {
+                Map<String, Object> accountData = new HashMap<>();
+                accountData.put("IBAN", account.getIBAN());
+                accountData.put("accountType", account.getAccountType());
+                accountData.put("balance", account.getBalance());
+                accountData.put("absoluteTransferLimit", account.getAbsoluteTransferLimit());
+                
+                if (account.getCustomer() != null) {
+                    accountData.put("customerId", account.getCustomer().getUserId());
+                    accountData.put("customerName", account.getCustomer().getFirstName() + " " + account.getCustomer().getLastName());
+                }
+                
+                return accountData;
+            })
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(result);
     }
 }

@@ -4,6 +4,7 @@ RUN apt-get update
 RUN apt-get install openjdk-21-jdk -y
 
 COPY . .
+RUN chmod +x mvnw
 RUN ./mvnw clean install -U
 
 EXPOSE 8080

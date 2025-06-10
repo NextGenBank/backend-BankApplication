@@ -89,22 +89,6 @@ public class UserService {
                            " and created accounts with transfer limit: " + transferLimit);
     }
 
-    public void approveUser(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        user.setStatus(UserStatus.APPROVED);
-        userRepository.save(user);
-    }
-
-    public void rejectUser(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        user.setStatus(UserStatus.REJECTED);
-        userRepository.save(user);
-    }
-
     private void createAccount(User customer, AccountType accountType, String transferLimitStr) {
         // Get a default employee for account creation
         User employee = userRepository.findAll().stream()

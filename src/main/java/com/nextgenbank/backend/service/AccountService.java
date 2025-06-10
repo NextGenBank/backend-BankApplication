@@ -81,32 +81,53 @@ public class AccountService {
         return savedAccount;
     }
 
+    /**
+     * Generates a unique NL IBAN by combining "NL" with a random number.
+     * Repeats generation if collision is detected in the database.
+     */
     private String generateUniqueIBAN() {
         String iban;
+        int maxAttempts = 1000;
+        int attempt = 0;
+
         do {
-            // NL IBAN pattern
-            iban = "NL" + (int)(Math.random() * 100) + String.format("%018d", (long)(Math.random() * 1_000_000_000_000_000_000L));
-        } while (accountRepository.existsById(iban)); // Make sure it's unique
+            if (++attempt > maxAttempts) {
+                throw new IllegalStateException("Failed to generate a unique IBAN after multiple attempts.");
+            }
+
+            // NL + 2-digit + 18-digit = 22-char IBAN
+            iban = "NL" + (int) (Math.random() * 100)
+                    + String.format("%018d", (long) (Math.random() * 1_000_000_000_000_000_000L));
+        } while (accountRepository.existsById(iban)); // ensure uniqueness
+
         return iban;
     }
 
+    /**
+     * Creates a checking and savings account for a given user.
+     * Rolls back transaction if any error occurs.
+     */
     @Transactional
     public void createAccountsForUser(User user) {
-        Account checking = new Account();
-        checking.setIBAN(generateUniqueIBAN());
-        checking.setCustomer(user);
-        checking.setAccountType(AccountType.CHECKING);
-        checking.setBalance(BigDecimal.ZERO);
-        checking.setAbsoluteTransferLimit(new BigDecimal("5000"));
+        try {
+            Account checking = new Account();
+            checking.setIBAN(generateUniqueIBAN());
+            checking.setCustomer(user);
+            checking.setAccountType(AccountType.CHECKING);
+            checking.setBalance(BigDecimal.ZERO);
+            checking.setAbsoluteTransferLimit(new BigDecimal("5000"));
 
-        Account savings = new Account();
-        savings.setIBAN(generateUniqueIBAN());
-        savings.setCustomer(user);
-        savings.setAccountType(AccountType.SAVINGS);
-        savings.setBalance(BigDecimal.ZERO);
-        savings.setAbsoluteTransferLimit(new BigDecimal("5000"));
+            Account savings = new Account();
+            savings.setIBAN(generateUniqueIBAN());
+            savings.setCustomer(user);
+            savings.setAccountType(AccountType.SAVINGS);
+            savings.setBalance(BigDecimal.ZERO);
+            savings.setAbsoluteTransferLimit(new BigDecimal("5000"));
 
-        accountRepository.save(checking);
-        accountRepository.save(savings);
+            accountRepository.save(checking);
+            accountRepository.save(savings);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create accounts for user: " + user.getUserId(), e);
+        }
     }
 }

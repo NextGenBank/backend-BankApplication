@@ -255,24 +255,25 @@ public class TransactionService {
         }
     }
 
+    /**
+     * Switches funds between a user's checking and savings account.
+     * Only customers are allowed to perform this operation.
+     */
     @Transactional
-    public SwitchFundsResponseDto switchFunds(User user, SwitchFundsRequestDto request){
-
+    public SwitchFundsResponseDto switchFunds(User user, SwitchFundsRequestDto request) {
         if (user.getRole() != UserRole.CUSTOMER) {
             throw new IllegalStateException("Only customers can switch funds.");
         }
 
         Account checking = accountRepository
                 .findByCustomerUserIdAndAccountType(user.getUserId(), AccountType.CHECKING)
-                .orElseThrow(() -> new IllegalStateException("Checking account not found"));
+                .orElseThrow(() -> new IllegalStateException("Checking account not found for user."));
 
         Account savings = accountRepository
                 .findByCustomerUserIdAndAccountType(user.getUserId(), AccountType.SAVINGS)
-                .orElseThrow(() -> new IllegalStateException("Savings account not found"));
-
+                .orElseThrow(() -> new IllegalStateException("Savings account not found for user."));
 
         Account from, to;
-
         if ("CHECKING".equalsIgnoreCase(request.getFrom())) {
             from = checking;
             to = savings;
@@ -283,8 +284,12 @@ public class TransactionService {
             throw new IllegalArgumentException("Invalid source account: " + request.getFrom());
         }
 
+        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Transfer amount must be greater than zero.");
+        }
+
         if (from.getBalance().compareTo(request.getAmount()) < 0) {
-            throw new IllegalStateException("Insufficient balance");
+            throw new IllegalStateException("Insufficient balance in the " + request.getFrom().toLowerCase() + " account.");
         }
 
         from.setBalance(from.getBalance().subtract(request.getAmount()));
@@ -293,6 +298,7 @@ public class TransactionService {
         accountRepository.save(from);
         accountRepository.save(to);
 
+        // Log the transaction
         Transaction transaction = new Transaction();
         transaction.setTransactionType(TransactionType.TRANSFER);
         transaction.setAmount(request.getAmount());
@@ -304,7 +310,7 @@ public class TransactionService {
         transactionRepository.save(transaction);
 
         return new SwitchFundsResponseDto(checking.getBalance(), savings.getBalance());
-        }
+    }
     
     /**
      * Get pending transactions in the system
@@ -318,4 +324,4 @@ public class TransactionService {
                 .map(TransactionDto::new)
                 .collect(Collectors.toList());
     }
-    }
+}

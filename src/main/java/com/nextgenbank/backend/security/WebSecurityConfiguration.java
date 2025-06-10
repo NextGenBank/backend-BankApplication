@@ -36,6 +36,7 @@ public class WebSecurityConfiguration {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                "/",
                                 "/auth/**",
                                 "/h2-console/**",
                                 "/api/test/user-exists",

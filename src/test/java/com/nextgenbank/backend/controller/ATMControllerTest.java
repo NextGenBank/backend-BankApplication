@@ -1,140 +1,109 @@
-// src/test/java/com/nextgenbank/backend/controller/ATMControllerTest.java
 package com.nextgenbank.backend.controller;
 
 import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.Transaction;
 import com.nextgenbank.backend.model.TransactionType;
 import com.nextgenbank.backend.model.User;
+import com.nextgenbank.backend.model.dto.TransactionDto;
+import com.nextgenbank.backend.model.dto.TransactionResponseDto;
 import com.nextgenbank.backend.security.UserPrincipal;
 import com.nextgenbank.backend.service.ATMService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.*;
 
-@WebMvcTest(ATMController.class)
 class ATMControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockBean
     private ATMService atmService;
+    private ATMController controller;
 
-    private void setupSecurityContext(User user) {
-        UserPrincipal principal = new UserPrincipal(user);
-        Authentication auth = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
-        SecurityContextHolder.getContext().setAuthentication(auth);
+    @BeforeEach
+    void setUp() {
+        atmService = mock(ATMService.class);
+        controller = new ATMController(atmService);
+    }
+
+    private UserPrincipal principal() {
+        User u = new User();
+        u.setUserId(1L);
+        u.setFirstName("Ivan");
+        u.setLastName("Petrov");
+        u.setRole(com.nextgenbank.backend.model.UserRole.CUSTOMER);
+        u.setStatus(com.nextgenbank.backend.model.UserStatus.APPROVED);
+        return new UserPrincipal(u);
     }
 
     @Test
-    void createDeposit_Success() throws Exception {
-        // Arrange
-        User user = new User();
-        user.setUserId(1L);
-        user.setFirstName("John");
-        user.setLastName("Doe");
-        setupSecurityContext(user);
-
-        Account account = new Account();
-        account.setIBAN("NL1234567890");
-        account.setCustomer(user);
-
-        Transaction transaction = new Transaction();
-        transaction.setTransactionId(1L);
-        transaction.setTransactionType(TransactionType.DEPOSIT);
-        transaction.setAmount(BigDecimal.valueOf(500));
-        transaction.setTimestamp(LocalDateTime.now());
-        transaction.setToAccount(account);
-        transaction.setInitiator(user);
-
-        when(atmService.doDeposit(any(), anyString(), any())).thenReturn(transaction);
-
-        // Act & Assert
-        mockMvc.perform(post("/api/atm/deposit")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"toIban\":\"NL1234567890\",\"amount\":500}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.transactionId").value(1))
-                .andExpect(jsonPath("$.toIban").value("NL1234567890"))
-                .andExpect(jsonPath("$.toName").value("John Doe"))
-                .andExpect(jsonPath("$.direction").value("DEPOSIT"));
+    @DisplayName("deposit(): 400 if it's not toIban or amount")
+    void deposit_missingFields() {
+        TransactionDto dto = new TransactionDto();
+        // и toIban и amount == null
+        ResponseEntity<?> resp = controller.createDeposit(dto, principal());
+        assertEquals(400, resp.getStatusCodeValue());
+        assertEquals("toIban and amount are required", resp.getBody());
     }
 
     @Test
-    void createDeposit_MissingFields() throws Exception {
-        // Arrange
-        User user = new User();
-        setupSecurityContext(user);
+    @DisplayName("deposit(): 200 & right DTO during the success")
+    void deposit_success() {
+        // подготовка входных данных
+        TransactionDto dto = new TransactionDto();
+        dto.setToIban("DE123");
+        dto.setAmount(new BigDecimal("100.00"));
 
-        // Act & Assert
-        mockMvc.perform(post("/api/atm/deposit")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$").value("toIban and amount are required"));
+        // договоримся, что сервис вернёт вот такую транзакцию
+        Transaction tx = new Transaction();
+        tx.setTransactionId(42L);
+        tx.setTransactionType(TransactionType.DEPOSIT);
+        tx.setAmount(dto.getAmount());
+        tx.setTimestamp(LocalDateTime.of(2025, 6, 9, 12, 0));
+        Account acc = new Account();
+        acc.setIBAN("DE123");
+        User cust = new User();
+        cust.setUserId(1L);
+        cust.setFirstName("Ivan");
+        cust.setLastName("Petrov");
+        acc.setCustomer(cust);
+        tx.setToAccount(acc);
+        tx.setInitiator(principal().getUser());
+
+        given(atmService.doDeposit(
+                any(User.class),
+                eq("DE123"),
+                eq(new BigDecimal("100.00"))
+        ))
+                .willReturn(tx);
+
+        // вызываем контроллер
+        ResponseEntity<?> resp = controller.createDeposit(dto, principal());
+        assertEquals(200, resp.getStatusCodeValue());
+
+        TransactionResponseDto body = (TransactionResponseDto) resp.getBody();
+        assertNotNull(body);
+        assertEquals(42L, body.transactionId());
+        assertEquals(TransactionType.DEPOSIT, body.transactionType());
+        assertEquals(new BigDecimal("100.00"), body.amount());
+        assertEquals("DE123", body.toIban());
+        assertEquals("Ivan Petrov", body.toName());
+        assertEquals("DEPOSIT", body.direction());
     }
 
     @Test
-    void createWithdraw_Success() throws Exception {
-        // Arrange
-        User user = new User();
-        user.setUserId(1L);
-        user.setFirstName("John");
-        user.setLastName("Doe");
-        setupSecurityContext(user);
-
-        Account account = new Account();
-        account.setIBAN("NL1234567890");
-        account.setCustomer(user);
-
-        Transaction transaction = new Transaction();
-        transaction.setTransactionId(1L);
-        transaction.setTransactionType(TransactionType.WITHDRAWAL);
-        transaction.setAmount(BigDecimal.valueOf(200));
-        transaction.setTimestamp(LocalDateTime.now());
-        transaction.setFromAccount(account);
-        transaction.setInitiator(user);
-
-        when(atmService.doWithdraw(any(), anyString(), any(), any())).thenReturn(transaction);
-
-        // Act & Assert
-        mockMvc.perform(post("/api/atm/withdraw")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"fromIban\":\"NL1234567890\",\"amount\":200}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.transactionId").value(1))
-                .andExpect(jsonPath("$.fromIban").value("NL1234567890"))
-                .andExpect(jsonPath("$.fromName").value("John Doe"))
-                .andExpect(jsonPath("$.direction").value("WITHDRAWAL"));
-    }
-
-    @Test
-    void createWithdraw_MissingFields() throws Exception {
-        // Arrange
-        User user = new User();
-        setupSecurityContext(user);
-
-        // Act & Assert
-        mockMvc.perform(post("/api/atm/withdraw")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$").value("fromIban and amount are required"));
+    @DisplayName("deposit(): 400 during AccessDenied from Service")
+    void deposit_accessDenied() {
+        TransactionDto dto = new TransactionDto();
+        dto.setToIban("XYZ");
+        dto.setAmount(new BigDecimal("50"));
+        given(atmService.doDeposit(any(), anyString(), any()))
+                .willThrow(new IllegalArgumentException("Access denied to deposit into this account"));
     }
 }

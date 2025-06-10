@@ -197,6 +197,7 @@ public class TransactionService {
         logger.info("Validating transfer: from={}, to={}, amount={}",
                 fromAccount.getIBAN(), toAccount.getIBAN(), amount);
 
+
         // Check if accounts are different
         if (fromAccount.getIBAN().equals(toAccount.getIBAN())) {
             logger.warn("Transfer rejected: Cannot transfer to the same account");
@@ -305,6 +306,8 @@ public class TransactionService {
 
         return new SwitchFundsResponseDto(checking.getBalance(), savings.getBalance());
         }
+
+
     
     /**
      * Get pending transactions in the system

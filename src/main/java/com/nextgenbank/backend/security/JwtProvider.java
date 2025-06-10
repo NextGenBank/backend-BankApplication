@@ -8,6 +8,7 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
@@ -15,6 +16,7 @@ import java.util.Date;
 public class JwtProvider {
 
     private final Key key;
+    private final String jwtSecret = "testSecret";
 
     public JwtProvider(@Value("${jwt.secret}") String secret) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
@@ -36,6 +38,18 @@ public class JwtProvider {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    public String generateTokenForTest(String email, String role) {
+        long nowMillis = System.currentTimeMillis();
+        long expMillis = nowMillis + 24 * 60 * 60 * 1000; // 24h
+        return Jwts.builder()
+                .setSubject(email)
+                .claim("role", role)
+                .setIssuedAt(new Date(nowMillis))
+                .setExpiration(new Date(expMillis))
+                .signWith(SignatureAlgorithm.HS256, jwtSecret.getBytes(StandardCharsets.UTF_8))
+                .compact();
     }
 
     public String extractEmail(String token) {

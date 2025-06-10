@@ -1,6 +1,7 @@
 package com.nextgenbank.backend.service;
 
 import com.nextgenbank.backend.model.Account;
+import com.nextgenbank.backend.model.AccountType;
 import com.nextgenbank.backend.model.User;
 import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.UserRepository;
@@ -78,5 +79,34 @@ public class AccountService {
 
         System.out.println("Updated absolute transfer limit successfully for IBAN: " + iban);
         return savedAccount;
+    }
+
+    private String generateUniqueIBAN() {
+        String iban;
+        do {
+            // NL IBAN pattern
+            iban = "NL" + (int)(Math.random() * 100) + String.format("%018d", (long)(Math.random() * 1_000_000_000_000_000_000L));
+        } while (accountRepository.existsById(iban)); // Make sure it's unique
+        return iban;
+    }
+
+    @Transactional
+    public void createAccountsForUser(User user) {
+        Account checking = new Account();
+        checking.setIBAN(generateUniqueIBAN());
+        checking.setCustomer(user);
+        checking.setAccountType(AccountType.CHECKING);
+        checking.setBalance(BigDecimal.ZERO);
+        checking.setAbsoluteTransferLimit(new BigDecimal("5000"));
+
+        Account savings = new Account();
+        savings.setIBAN(generateUniqueIBAN());
+        savings.setCustomer(user);
+        savings.setAccountType(AccountType.SAVINGS);
+        savings.setBalance(BigDecimal.ZERO);
+        savings.setAbsoluteTransferLimit(new BigDecimal("5000"));
+
+        accountRepository.save(checking);
+        accountRepository.save(savings);
     }
 }

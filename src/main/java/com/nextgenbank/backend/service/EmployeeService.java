@@ -1,5 +1,6 @@
 package com.nextgenbank.backend.service;
 
+import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.UserRole;
 import com.nextgenbank.backend.model.User;
 import com.nextgenbank.backend.model.UserStatus;
@@ -15,10 +16,12 @@ import java.util.stream.Collectors;
 public class EmployeeService {
 
     private final UserRepository userRepository;
+    private final AccountService accountService;
 
     @Autowired
-    public EmployeeService(UserRepository userRepository) {
+    public EmployeeService(UserRepository userRepository, AccountService accountService) {
         this.userRepository = userRepository;
+        this.accountService = accountService;
     }
 
     /**
@@ -53,6 +56,7 @@ public class EmployeeService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         user.setStatus(UserStatus.APPROVED);
         userRepository.save(user);
+        accountService.createAccountsForUser(user);
     }
 
     /**

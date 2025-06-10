@@ -55,6 +55,7 @@ public class WebSecurityConfiguration {
                         .requestMatchers("/api/transactions/switch").hasRole("CUSTOMER")
                         .requestMatchers("/api/transactions").hasRole("CUSTOMER")
                         .requestMatchers("/api/employees/**").hasRole("EMPLOYEE")
+                        .requestMatchers("/api/accounts/all-iban-users").hasRole("CUSTOMER")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(e -> e.authenticationEntryPoint(authEntryPoint)) // 👈 This line!

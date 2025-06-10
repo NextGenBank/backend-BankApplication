@@ -9,6 +9,7 @@ import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.UserRepository;
 import com.nextgenbank.backend.service.EmployeeService;
 import com.nextgenbank.backend.service.TransactionService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -78,13 +79,27 @@ public class EmployeeController {
 
     @PutMapping("/approve/{customerId}")
     public ResponseEntity<?> approveCustomer(@PathVariable Long customerId) {
-        employeeService.approveCustomer(customerId);
-        return ResponseEntity.ok(Map.of("message", "Customer approved successfully"));
+        try {
+            employeeService.approveCustomer(customerId);
+            return ResponseEntity.ok(Map.of("message", "Customer approved successfully"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Unexpected error while approving customer."));
+        }
     }
 
     @PutMapping("/reject/{customerId}")
     public ResponseEntity<?> rejectCustomer(@PathVariable Long customerId) {
-        employeeService.rejectCustomer(customerId);
-        return ResponseEntity.ok(Map.of("message", "Customer rejected successfully"));
+        try {
+            employeeService.rejectCustomer(customerId);
+            return ResponseEntity.ok(Map.of("message", "Customer rejected successfully"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Unexpected error while rejecting customer."));
+        }
     }
 }

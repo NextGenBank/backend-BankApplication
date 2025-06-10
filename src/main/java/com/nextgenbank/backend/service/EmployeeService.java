@@ -1,5 +1,6 @@
 package com.nextgenbank.backend.service;
 
+import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.UserRole;
 import com.nextgenbank.backend.model.User;
 import com.nextgenbank.backend.model.UserStatus;
@@ -15,10 +16,12 @@ import java.util.stream.Collectors;
 public class EmployeeService {
 
     private final UserRepository userRepository;
+    private final AccountService accountService;
 
     @Autowired
-    public EmployeeService(UserRepository userRepository) {
+    public EmployeeService(UserRepository userRepository, AccountService accountService) {
         this.userRepository = userRepository;
+        this.accountService = accountService;
     }
 
     /**
@@ -46,21 +49,34 @@ public class EmployeeService {
     }
 
     /**
-     * Approve a customer
+     * Approves a customer and creates their accounts.
      */
     public void approveCustomer(Long customerId) {
         User user = userRepository.findById(customerId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + customerId));
+
+        if (user.getStatus() == UserStatus.APPROVED) {
+            throw new IllegalStateException("User is already approved.");
+        }
+
         user.setStatus(UserStatus.APPROVED);
         userRepository.save(user);
+
+        // Create IBAN accounts
+        accountService.createAccountsForUser(user);
     }
 
     /**
-     * Reject a customer
+     * Rejects a customer.
      */
     public void rejectCustomer(Long customerId) {
         User user = userRepository.findById(customerId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + customerId));
+
+        if (user.getStatus() == UserStatus.REJECTED) {
+            throw new IllegalStateException("User is already rejected.");
+        }
+
         user.setStatus(UserStatus.REJECTED);
         userRepository.save(user);
     }

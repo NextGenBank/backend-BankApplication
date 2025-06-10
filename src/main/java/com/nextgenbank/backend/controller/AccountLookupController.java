@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.nextgenbank.backend.model.UserRole;
+
 
 import java.util.List;
 
@@ -27,11 +29,11 @@ public class AccountLookupController {
 
     @GetMapping("/lookup")
     public ResponseEntity<?> lookupIBAN(
-            @RequestParam String firstName,
+            @RequestParam String firstName, //GET /api/accounts/lookup?firstName=Alice&lastName=Smith
             @RequestParam String lastName,
             Authentication authentication) {
 
-        // Get the logged-in user (optional use)
+        // Get the logged-in user (opt)
         String requesterEmail = authentication.getName();
 
         // Find the target user
@@ -46,9 +48,10 @@ public class AccountLookupController {
         User matchedUser = matchedUsers.get(0); // assume first match only
         List<Account> accounts = accountRepository.findByCustomer(matchedUser);
 
-        List<String> ibans = accounts.stream()
-                .map(Account::getIBAN)
-                .toList();
+        List<String> ibans = accounts.stream() //sooo this changes List<Account> → List<String>  (of IBANs)
+                .map(Account::getIBAN) //shortcut for .map(account -> account.getIBAN())
+                .toList(); //then this collects all the transformed results into a new list  List<String> ibans = [ "NL91ABNA0417164300", "NL54INGB0001234567" ]
+
 
         AccountLookupDto result = new AccountLookupDto(
                 matchedUser.getFirstName(),
@@ -58,4 +61,32 @@ public class AccountLookupController {
 
         return ResponseEntity.ok(result);
     }
+
+    @GetMapping("/all-iban-users")
+    public ResponseEntity<?> getAllUsersWithIbans(Authentication authentication) {
+        // get all approved customers
+        List<User> approvedCustomers = userRepository.findByRoleAndStatus(
+                UserRole.CUSTOMER, UserStatus.APPROVED);
+
+        // transform each customer to an AccountLookupDto with their IBANs
+        List<AccountLookupDto> results = approvedCustomers.stream()
+                .map(user -> {
+                    // get all accounts for this user and extract IBANs
+                    List<String> ibans = accountRepository.findByCustomer(user)
+                            .stream()
+                            .map(Account::getIBAN)
+                            .toList();
+
+                    // create DTO for this user
+                    return new AccountLookupDto(
+                            user.getFirstName(),
+                            user.getLastName(),
+                            ibans
+                    );
+                })
+                .toList();
+
+        return ResponseEntity.ok(results);
+    }
+
 }

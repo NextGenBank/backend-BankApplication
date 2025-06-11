@@ -33,12 +33,13 @@ public class UserService {
     }
 
     public User authenticate(String email, String password) {
-        // Normalize email
+        // normalize emaill;it converts email to lowercase to ensure consistency
         String normalizedEmail = email.toLowerCase();
 
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
 
+        //pasword check; it compares raw password with encrypted DB password
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new BadCredentialsException("Invalid credentials");
         }

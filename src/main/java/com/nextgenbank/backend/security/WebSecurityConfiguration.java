@@ -28,11 +28,11 @@ public class WebSecurityConfiguration {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, CustomAuthEntryPoint authEntryPoint) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .headers(headers -> headers
+                .csrf(csrf -> csrf.disable()) //Cross-Site Request Forgery; is disabled because JWTs are used for stateless authentication
+                .cors(cors -> cors.configurationSource(corsConfigurationSource())) //allows cross-origin requests from specified domains (configured in corsConfigurationSource())
+                .headers(headers -> headers //Prevents the application from being embedded in an <iframe> (security against clickjacking)
                         .addHeaderWriter(new XFrameOptionsHeaderWriter(
-                                XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN))
+                                XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN)) //only allows framing by pages from the same origin
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -58,9 +58,9 @@ public class WebSecurityConfiguration {
                         .requestMatchers("/api/accounts/all-iban-users").hasRole("CUSTOMER")
                         .anyRequest().authenticated()
                 )
-                .exceptionHandling(e -> e.authenticationEntryPoint(authEntryPoint)) // 👈 This line!
+                .exceptionHandling(e -> e.authenticationEntryPoint(authEntryPoint))
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)) //the app uses JWTs, so no server-side sessions are created
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

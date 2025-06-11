@@ -53,25 +53,31 @@ public class JwtFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            Claims claims = jwtProvider.extractAllClaims(token);
+            String token = authHeader.substring(7); // Remove "Bearer " prefix
+            Claims claims = jwtProvider.extractAllClaims(token); //decodes the JWT and verifies its signature
 
-            String email = claims.getSubject();
-            String role = claims.get("role", String.class);
+            //Header, Payload (Claims), and Signature
+            String email = claims.getSubject(); //Claims: Contains JWT payload (e.g., { "sub": "user@example.com", "role": "CUSTOMER" })
+            String role = claims.get("role", String.class); // Extracts custom "role" claim
 
+            //.getContext() returns the SecurityContext which holds the Authentication object
+            //.getAuthentication() returns the current Authentication object
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
+                //creates an Authentication object
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails, null,
                                 Collections.singleton(new SimpleGrantedAuthority("ROLE_" + role))
+                                // hte goal is to create a list with one item (like "ROLE_CUSTOMER")
                         );
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
 
+        // this proceeds to the next filter (or controller if no more filters exist)
         filterChain.doFilter(request, response);
     }
 }

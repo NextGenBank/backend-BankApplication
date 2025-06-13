@@ -82,12 +82,13 @@ public class UserService {
         
         // Create checking and savings accounts for the new user
         // Default transfer limit is 1000
-        String transferLimit = "1000";
-        createAccount(savedUser, AccountType.CHECKING, transferLimit);
-        createAccount(savedUser, AccountType.SAVINGS, transferLimit);
-        
-        System.out.println("Registered new user with ID: " + savedUser.getUserId() + 
-                           " and created accounts with transfer limit: " + transferLimit);
+//        String transferLimit = "1000";
+//        createAccount(savedUser, AccountType.CHECKING, transferLimit);
+//        createAccount(savedUser, AccountType.SAVINGS, transferLimit);
+//
+        System.out.println("Registered new user with ID: " + savedUser.getUserId() +
+                ". Pending approval by employee.");
+
     }
 
     private void createAccount(User customer, AccountType accountType, String transferLimitStr) {

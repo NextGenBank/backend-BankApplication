@@ -3,6 +3,7 @@ package com.nextgenbank.backend.service;
 import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.AccountType;
 import com.nextgenbank.backend.model.User;
+import com.nextgenbank.backend.model.UserRole;
 import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -110,24 +111,40 @@ public class AccountService {
     @Transactional
     public void createAccountsForUser(User user) {
         try {
+            // Find a default employee to set as creator
+            User employee = userRepository.findAll().stream()
+                    .filter(u -> u.getRole() == UserRole.EMPLOYEE)
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("No employee found to assign as creator"));
+
+            // Create checking account
             Account checking = new Account();
             checking.setIBAN(generateUniqueIBAN());
             checking.setCustomer(user);
             checking.setAccountType(AccountType.CHECKING);
             checking.setBalance(BigDecimal.ZERO);
             checking.setAbsoluteTransferLimit(new BigDecimal("5000"));
+            checking.setDailyTransferAmount(BigDecimal.ZERO);
+            checking.setCreatedBy(employee);
+            checking.setCreatedAt(java.time.LocalDateTime.now());
 
+            // Create savings account
             Account savings = new Account();
             savings.setIBAN(generateUniqueIBAN());
             savings.setCustomer(user);
             savings.setAccountType(AccountType.SAVINGS);
             savings.setBalance(BigDecimal.ZERO);
             savings.setAbsoluteTransferLimit(new BigDecimal("5000"));
+            savings.setDailyTransferAmount(BigDecimal.ZERO);
+            savings.setCreatedBy(employee);
+            savings.setCreatedAt(java.time.LocalDateTime.now());
 
+            // Save both accounts
             accountRepository.save(checking);
             accountRepository.save(savings);
         } catch (Exception e) {
             throw new RuntimeException("Failed to create accounts for user: " + user.getUserId(), e);
         }
     }
+
 }

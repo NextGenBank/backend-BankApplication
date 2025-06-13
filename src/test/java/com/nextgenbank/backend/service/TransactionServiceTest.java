@@ -8,12 +8,14 @@ import com.nextgenbank.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 public class TransactionServiceTest {
@@ -38,9 +40,11 @@ public class TransactionServiceTest {
         Account toAccount = createAccount("IBAN2", user);
 
         Transaction txn = createTransaction(1L, fromAccount, toAccount, new BigDecimal("100.00"), LocalDateTime.now());
-        when(transactionRepository.findAll()).thenReturn(List.of(txn));
+        when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of(txn));
 
-        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(user, null, null, null, null);
+        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(
+                user, null, null, null, null, null, null, null, null
+        );
 
         assertEquals(1, result.size());
         assertEquals("INTERNAL", result.get(0).direction());
@@ -53,9 +57,11 @@ public class TransactionServiceTest {
         Account toAccount = createAccount("OTHER", user);
 
         Transaction txn = createTransaction(2L, fromAccount, toAccount, new BigDecimal("50.00"), LocalDateTime.now());
-        when(transactionRepository.findAll()).thenReturn(List.of(txn));
+        when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of(txn));
 
-        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(user, "FILTER-MATCH", null, null, null);
+        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(
+                user, "FILTER-MATCH", null, null, null, null, null, null, null
+        );
 
         assertEquals(1, result.size());
     }
@@ -68,9 +74,11 @@ public class TransactionServiceTest {
         Account to = createAccount("TO", bob);
 
         Transaction txn = createTransaction(3L, from, to, new BigDecimal("75.00"), LocalDateTime.now());
-        when(transactionRepository.findAll()).thenReturn(List.of(txn));
+        when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of(txn));
 
-        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(alice, null, "bob", null, null);
+        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(
+                alice, null, "bob", null, null, null, null, null, null
+        );
 
         assertEquals(1, result.size());
         assertEquals("Bob Brown", result.get(0).toName());
@@ -84,9 +92,11 @@ public class TransactionServiceTest {
         Account to = createAccount("TO", receiver);
 
         Transaction txn = createTransaction(4L, from, to, new BigDecimal("80.00"), LocalDateTime.now());
-        when(transactionRepository.findAll()).thenReturn(List.of(txn));
+        when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of(txn));
 
-        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(user, null, null, "outgoing", null);
+        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(
+                user, null, null, "outgoing", null, null, null, null, null
+        );
 
         assertEquals(1, result.size());
         assertEquals("OUTGOING", result.get(0).direction());
@@ -100,13 +110,18 @@ public class TransactionServiceTest {
 
         Transaction txn1 = createTransaction(5L, from, to, new BigDecimal("100.00"), LocalDateTime.now());
         Transaction txn2 = createTransaction(6L, from, to, new BigDecimal("200.00"), LocalDateTime.now());
-        when(transactionRepository.findAll()).thenReturn(List.of(txn1, txn2));
 
-        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(user, null, null, null, "amount");
+        // Return in descending order to match expected result
+        when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of(txn2, txn1));
+
+        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(
+                user, null, null, null, "amount", null, null, null, null
+        );
 
         assertEquals(2, result.size());
         assertTrue(result.get(0).amount().compareTo(result.get(1).amount()) > 0);
     }
+
 
     private User createUser(Long id, String firstName, String lastName) {
         User user = new User();

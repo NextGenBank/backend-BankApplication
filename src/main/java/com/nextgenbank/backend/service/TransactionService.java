@@ -9,10 +9,17 @@ import com.nextgenbank.backend.model.dto.SwitchFundsResponseDto;
 import com.nextgenbank.backend.model.dto.TransactionResponseDto;
 import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.TransactionRepository;
+import com.nextgenbank.backend.specification.TransactionSpecification;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.transaction.Transactional;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import com.nextgenbank.backend.mapper.TransactionMapper;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.math.BigDecimal;
 import java.util.List;
@@ -26,96 +33,65 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
+
     private static final Logger logger = LoggerFactory.getLogger(TransactionService.class);
 
-    public TransactionService(TransactionRepository transactionRepository, AccountRepository accountRepository,
-                              UserRepository userRepository) {
+    public TransactionService(
+            TransactionRepository transactionRepository,
+            AccountRepository accountRepository,
+            UserRepository userRepository
+    ) {
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
         this.userRepository = userRepository;
     }
 
-    public List<TransactionResponseDto> getTransactionsForUser(User user, String iban, String name, String type, String sort) {
-        Long userId = user.getUserId();
-
-        List<TransactionResponseDto> transactions = transactionRepository.findAll().stream()
-                .filter(txn -> {
-                    Account from = txn.getFromAccount();
-                    Account to = txn.getToAccount();
-
-                    return (from != null && from.getCustomer().getUserId().equals(userId)) ||
-                            (to != null && to.getCustomer().getUserId().equals(userId));
-                })
-                .map(txn -> {
-                    String fromIban = "N/A";
-                    String fromName = "Bank";
-                    if (txn.getFromAccount() != null) {
-                        fromIban = txn.getFromAccount().getIBAN();
-                        User sender = txn.getFromAccount().getCustomer();
-                        fromName = sender.getFirstName() + " " + sender.getLastName();
-                    }
-
-                    String toIban = "N/A";
-                    String toName = "Unknown";
-                    if (txn.getToAccount() != null) {
-                        toIban = txn.getToAccount().getIBAN();
-                        User receiver = txn.getToAccount().getCustomer();
-                        toName = receiver.getFirstName() + " " + receiver.getLastName();
-                    }
-
-                    boolean isSender = txn.getFromAccount() != null &&
-                            txn.getFromAccount().getCustomer().getUserId().equals(userId);
-                    boolean isReceiver = txn.getToAccount() != null &&
-                            txn.getToAccount().getCustomer().getUserId().equals(userId);
-
-                    String direction = isSender && isReceiver ? "INTERNAL"
-                            : isSender ? "OUTGOING" : "INCOMING";
-
-                    return new TransactionResponseDto(
-                            txn.getTransactionId(),
-                            txn.getTransactionType(),
-                            txn.getAmount(),
-                            txn.getTimestamp(),
-                            fromIban,
-                            fromName,
-                            toIban,
-                            toName,
-                            direction
-                    );
-                })
-                .filter(dto -> {
-                    if (iban != null && !iban.isBlank()) {
-                        return dto.fromIban().equalsIgnoreCase(iban) || dto.toIban().equalsIgnoreCase(iban);
-                    }
-                    return true;
-                })
-                .filter(dto -> {
-                    if (name != null && !name.isBlank()) {
-                        String fullName = (dto.fromName() + " " + dto.toName()).toLowerCase();
-                        return fullName.contains(name.toLowerCase());
-                    }
-                    return true;
-                })
-                .filter(dto -> {
-                    if (type != null && !type.isBlank()) {
-                        return dto.direction().equalsIgnoreCase(type);
-                    }
-                    return true;
-                })
-                .collect(Collectors.toList());
-
-        // Sorting logic
-        if (sort != null && !sort.isBlank()) {
-            switch (sort.toLowerCase()) {
-                case "recent" -> transactions.sort(Comparator.comparing(TransactionResponseDto::timestamp).reversed());
-                case "amount" -> transactions.sort(Comparator.comparing(TransactionResponseDto::amount).reversed());
-                case "type" -> transactions.sort(Comparator.comparing(t -> t.transactionType().name()));
-            }
+    public List<TransactionResponseDto> getTransactionsForUser(User user,
+                                                               String iban,
+                                                               String name,
+                                                               String type,
+                                                               String sort,
+                                                               String startDate,
+                                                               String endDate,
+                                                               BigDecimal amount,
+                                                               String amountFilter) {
+        // Convert enums and dates
+        TransactionType transactionType = null;
+        if (type != null && !type.isEmpty()) {
+            try {
+                transactionType = TransactionType.valueOf(type.toUpperCase());
+            } catch (IllegalArgumentException ignored) {}
         }
 
-        return transactions;
+        LocalDateTime start = null;
+        LocalDateTime end = null;
+        try {
+            if (startDate != null) start = LocalDateTime.parse(startDate);
+            if (endDate != null) end = LocalDateTime.parse(endDate);
+        } catch (Exception ignored) {}
+
+        // Build specification
+        Specification<Transaction> spec = Specification
+                .where((Specification<Transaction>) (root, query, cb) -> {
+                    Join<Object, Object> fa = root.join("fromAccount", JoinType.LEFT);
+                    Join<Object, Object> ta = root.join("toAccount", JoinType.LEFT);
+                    return cb.or(
+                            cb.equal(fa.get("customer").get("userId"), user.getUserId()),
+                            cb.equal(ta.get("customer").get("userId"), user.getUserId())
+                    );
+                })
+                .and(TransactionSpecification.filterByCriteria(iban, name, transactionType, start, end, amount, amountFilter));
+
+
+        // Fetch & map to DTO
+        List<Transaction> transactions = transactionRepository.findAll(spec);
+        return transactions.stream()
+                .map(txn -> TransactionMapper.toResponseDto(txn, user.getUserId()))
+                .toList();
 
     }
+
+
 
     public List<TransactionDto> getAllTransactions() {
         return transactionRepository.findAllByOrderByTimestampDesc()
@@ -311,7 +287,7 @@ public class TransactionService {
 
         return new SwitchFundsResponseDto(checking.getBalance(), savings.getBalance());
     }
-    
+
     /**
      * Get pending transactions in the system
      * For the dashboard metrics

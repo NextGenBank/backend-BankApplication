@@ -5,12 +5,13 @@ import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.Transaction;
 import com.nextgenbank.backend.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+public interface TransactionRepository extends JpaRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction> {
     List<Transaction> findByFromAccountOrToAccountOrderByTimestampDesc(Account fromAccount, Account toAccount);
     List<Transaction> findAllByOrderByTimestampDesc();
     List<Transaction> findByInitiatorOrderByTimestampDesc(User initiator);

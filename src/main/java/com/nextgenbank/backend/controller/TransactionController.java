@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -32,9 +33,13 @@ public class TransactionController {
             @RequestParam(required = false) String iban,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) String sort
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) BigDecimal amount,
+            @RequestParam(required = false) String amountFilter // EQUAL, LESS, GREATER
     ) {
-        return transactionService.getTransactionsForUser(principal.getUser(), iban, name, type, sort);
+        return transactionService.getTransactionsForUser(principal.getUser(), iban, name, type, sort, startDate, endDate, amount, amountFilter);
     }
 
 

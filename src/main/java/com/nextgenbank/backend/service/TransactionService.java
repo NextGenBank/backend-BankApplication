@@ -49,28 +49,33 @@ public class TransactionService {
     public List<TransactionResponseDto> getTransactionsForUser(User user,
                                                                String iban,
                                                                String name,
-                                                               String type,
+                                                               String directionParam,
                                                                String sort,
                                                                String startDate,
                                                                String endDate,
                                                                BigDecimal amount,
                                                                String amountFilter) {
-        // Convert enums and dates
-        TransactionType transactionType = null;
-        if (type != null && !type.isEmpty()) {
+        // Convert TransactionDirection
+        TransactionDirection direction = null;
+        if (directionParam != null && !directionParam.isEmpty()) {
             try {
-                transactionType = TransactionType.valueOf(type.toUpperCase());
+                direction = TransactionDirection.valueOf(directionParam.toUpperCase());
             } catch (IllegalArgumentException ignored) {}
         }
 
-        LocalDateTime start = null;
-        LocalDateTime end = null;
+        // Convert LocalDate range
+        LocalDate start = null;
+        LocalDate end = null;
         try {
-            if (startDate != null) start = LocalDateTime.parse(startDate);
-            if (endDate != null) end = LocalDateTime.parse(endDate);
+            if (startDate != null && !startDate.isEmpty()) {
+                start = LocalDate.parse(startDate);
+            }
+            if (endDate != null && !endDate.isEmpty()) {
+                end = LocalDate.parse(endDate);
+            }
         } catch (Exception ignored) {}
 
-        // Build specification
+        // Build the Specification
         Specification<Transaction> spec = Specification
                 .where((Specification<Transaction>) (root, query, cb) -> {
                     Join<Object, Object> fa = root.join("fromAccount", JoinType.LEFT);
@@ -80,18 +85,24 @@ public class TransactionService {
                             cb.equal(ta.get("customer").get("userId"), user.getUserId())
                     );
                 })
-                .and(TransactionSpecification.filterByCriteria(iban, name, transactionType, start, end, amount, amountFilter));
+                .and(TransactionSpecification.filterByCriteria(
+                        user.getUserId(),
+                        iban,
+                        name,
+                        direction,
+                        start,
+                        end,
+                        amount,
+                        amountFilter
+                ));
 
-
-        // Fetch & map to DTO
+        // Execute query and map results
         List<Transaction> transactions = transactionRepository.findAll(spec);
+
         return transactions.stream()
                 .map(txn -> TransactionMapper.toResponseDto(txn, user.getUserId()))
-                .toList();
-
+                .collect(Collectors.toList());
     }
-
-
 
     public List<TransactionDto> getAllTransactions() {
         return transactionRepository.findAllByOrderByTimestampDesc()

@@ -1,22 +1,23 @@
 package com.nextgenbank.backend.specification;
 
 import com.nextgenbank.backend.model.Transaction;
-import com.nextgenbank.backend.model.TransactionType;
-
+import com.nextgenbank.backend.model.TransactionDirection;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class TransactionSpecification {
 
     public static Specification<Transaction> filterByCriteria(
+            Long userId,
             String iban,
             String name,
-            TransactionType type,
-            LocalDateTime startDate,
-            LocalDateTime endDate,
+            TransactionDirection direction,
+            LocalDate startDate,
+            LocalDate endDate,
             BigDecimal amount,
             String amountFilter
     ) {
@@ -46,20 +47,45 @@ public class TransactionSpecification {
                 ));
             }
 
-            if (type != null) {
-                predicate = cb.and(predicate, cb.equal(root.get("transactionType"), type));
+            if (direction != null) {
+                Path<Long> fromUserId = fromCustomer.get("userId");
+                Path<Long> toUserId = toCustomer.get("userId");
+
+                switch (direction) {
+                    case INCOMING -> predicate = cb.and(predicate,
+                            cb.and(
+                                    cb.equal(toUserId, userId),
+                                    cb.or(
+                                            cb.notEqual(fromUserId, userId),
+                                            cb.isNull(fromUserId)
+                                    )
+                            )
+                    );
+                    case OUTGOING -> predicate = cb.and(predicate,
+                            cb.and(
+                                    cb.equal(fromUserId, userId),
+                                    cb.notEqual(toUserId, userId)
+                            )
+                    );
+                    case INTERNAL -> predicate = cb.and(predicate,
+                            cb.and(
+                                    cb.equal(fromUserId, userId),
+                                    cb.equal(toUserId, userId)
+                            )
+                    );
+                }
             }
 
             if (startDate != null) {
-                predicate = cb.and(predicate, cb.greaterThanOrEqualTo(root.get("timestamp"), startDate));
+                predicate = cb.and(predicate, cb.greaterThanOrEqualTo(root.get("timestamp"), startDate.atStartOfDay()));
             }
 
             if (endDate != null) {
-                predicate = cb.and(predicate, cb.lessThanOrEqualTo(root.get("timestamp"), endDate));
+                predicate = cb.and(predicate, cb.lessThan(root.get("timestamp"), endDate.plusDays(1).atStartOfDay()));
             }
 
             if (amount != null && amountFilter != null) {
-                switch (amountFilter) {
+                switch (amountFilter.toUpperCase()) {
                     case "EQUAL" -> predicate = cb.and(predicate, cb.equal(root.get("amount"), amount));
                     case "GREATER" -> predicate = cb.and(predicate, cb.greaterThan(root.get("amount"), amount));
                     case "LESS" -> predicate = cb.and(predicate, cb.lessThan(root.get("amount"), amount));

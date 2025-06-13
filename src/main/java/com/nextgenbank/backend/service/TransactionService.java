@@ -324,4 +324,38 @@ public class TransactionService {
                 .map(TransactionDto::new)
                 .collect(Collectors.toList());
     }
+
+    @Transactional
+    public Transaction performAtmOperation(User initiator, String iban, BigDecimal amount, TransactionType type) {
+        if (type != TransactionType.DEPOSIT && type != TransactionType.WITHDRAWAL) {
+            throw new IllegalArgumentException("Invalid transaction type for ATM operation.");
+        }
+
+        Account account = accountRepository.findById(iban)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + iban));
+
+        if (!account.getCustomer().getUserId().equals(initiator.getUserId())) {
+            throw new IllegalArgumentException("Access denied to this account.");
+        }
+
+        Transaction tx = new Transaction();
+        tx.setAmount(amount);
+        tx.setTransactionType(type);
+        tx.setTimestamp(LocalDateTime.now());
+        tx.setInitiator(initiator);
+
+        if (type == TransactionType.DEPOSIT) {
+            account.setBalance(account.getBalance().add(amount));
+            tx.setToAccount(account);
+        } else { // WITHDRAWAL
+            if (account.getBalance().compareTo(amount) < 0) {
+                throw new IllegalArgumentException("Insufficient funds.");
+            }
+            account.setBalance(account.getBalance().subtract(amount));
+            tx.setFromAccount(account);
+        }
+
+        accountRepository.save(account);
+        return transactionRepository.save(tx);
+    }
 }

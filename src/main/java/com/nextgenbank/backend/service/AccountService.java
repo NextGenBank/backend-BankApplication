@@ -4,6 +4,7 @@ import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.AccountType;
 import com.nextgenbank.backend.model.User;
 import com.nextgenbank.backend.model.UserRole;
+import com.nextgenbank.backend.model.dto.AccountLookupDto;
 import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
+
+import java.util.stream.Collectors;
 
 @Service
 public class AccountService {
@@ -24,6 +31,9 @@ public class AccountService {
         this.accountRepository = accountRepository;
         this.userRepository = userRepository;
     }
+    @PersistenceContext
+    private EntityManager entityManager;
+
 
     /**
      * Get all accounts for a customer
@@ -145,6 +155,59 @@ public class AccountService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to create accounts for user: " + user.getUserId(), e);
         }
+    }
+
+    //lookup accounts by first name, last name, or IBAN
+    public List<AccountLookupDto> lookupAccounts(String name, String iban) {
+        if ((name == null || name.isBlank()) && (iban == null || iban.isBlank())) {
+            throw new IllegalArgumentException("Please provide a name or IBAN to search.");
+        }
+
+        String firstName = null;
+        String lastName = null;
+
+        if (name != null && !name.isBlank()) {
+            String[] parts = name.trim().split("\\s+", 2);
+            firstName = parts[0];
+            lastName = parts.length > 1 ? parts[1] : null;
+        }
+
+        List<User> matchedUsers = userRepository.findApprovedUsersWithAccounts(
+                firstName,
+                lastName,
+                (iban != null && !iban.isBlank()) ? iban : null
+        );
+
+        return matchedUsers.stream()
+                .map(user -> {
+                    List<String> filteredIbans = user.getAccountsOwned().stream()
+                            .map(Account::getIBAN)
+                            .filter(accountIban ->
+                                    iban == null || iban.isBlank() || accountIban.toLowerCase().contains(iban.toLowerCase())
+                            )
+                            .collect(Collectors.toList());
+
+                    return new AccountLookupDto(
+                            user.getFirstName(),
+                            user.getLastName(),
+                            filteredIbans
+                    );
+                })
+                .filter(dto -> !dto.getIbans().isEmpty()) // Only return users with visible IBANs
+                .collect(Collectors.toList());
+    }
+
+    public List<AccountLookupDto> getAllUsersWithIbans() {
+        List<User> users = userRepository.findAllApprovedCustomersWithAccounts();
+        return users.stream()
+                .map(user -> new AccountLookupDto(
+                        user.getFirstName(),
+                        user.getLastName(),
+                        user.getAccountsOwned().stream()
+                                .map(Account::getIBAN)
+                                .collect(Collectors.toList())
+                ))
+                .collect(Collectors.toList());
     }
 
 }

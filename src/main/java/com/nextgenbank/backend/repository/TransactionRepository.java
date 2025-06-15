@@ -11,18 +11,6 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
-    List<Transaction> findByFromAccountOrToAccountOrderByTimestampDesc(Account fromAccount, Account toAccount);
     List<Transaction> findAllByOrderByTimestampDesc();
-    List<Transaction> findByInitiatorOrderByTimestampDesc(User initiator);
     List<Transaction> findByFromAccount_CustomerOrToAccount_CustomerOrderByTimestampDesc(User customer, User sameCustomer);
-
-    @Query("""
-       SELECT t
-       FROM Transaction t
-       LEFT JOIN t.fromAccount fa
-       LEFT JOIN t.toAccount   ta
-       WHERE (fa.customer.userId = :userId) 
-          OR (ta.customer.userId = :userId)
-    """)
-    List<Transaction> findAllByUserId(@Param("userId") Long userId);
 }

@@ -1,9 +1,9 @@
 package com.nextgenbank.backend.repository;
 
 import com.nextgenbank.backend.model.User;
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface UserRepositoryCustom {
-    List<User> findApprovedUsersWithAccounts(String firstName, String lastName, String iban);
-    List<User> findAllApprovedCustomersWithAccounts();
+    Page<User> findApprovedUsersWithAccounts(String name, String iban, Pageable pageable);
 }

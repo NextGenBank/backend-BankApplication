@@ -11,6 +11,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -157,28 +161,11 @@ public class AccountService {
         }
     }
 
-    //lookup accounts by first name, last name, or IBAN
-    public List<AccountLookupDto> lookupAccounts(String name, String iban) {
-        if ((name == null || name.isBlank()) && (iban == null || iban.isBlank())) {
-            throw new IllegalArgumentException("Please provide a name or IBAN to search.");
-        }
+    // paginated + filtered lookup
+    public Page<AccountLookupDto> lookupAccounts(String name, String iban, Pageable pageable) {
+        Page<User> usersPage = userRepository.findApprovedUsersWithAccounts(name, iban, pageable);
 
-        String firstName = null;
-        String lastName = null;
-
-        if (name != null && !name.isBlank()) {
-            String[] parts = name.trim().split("\\s+", 2);
-            firstName = parts[0];
-            lastName = parts.length > 1 ? parts[1] : null;
-        }
-
-        List<User> matchedUsers = userRepository.findApprovedUsersWithAccounts(
-                firstName,
-                lastName,
-                (iban != null && !iban.isBlank()) ? iban : null
-        );
-
-        return matchedUsers.stream()
+        List<AccountLookupDto> dtoList = usersPage.getContent().stream()
                 .map(user -> {
                     List<String> filteredIbans = user.getAccountsOwned().stream()
                             .map(Account::getIBAN)
@@ -193,13 +180,17 @@ public class AccountService {
                             filteredIbans
                     );
                 })
-                .filter(dto -> !dto.getIbans().isEmpty()) // Only return users with visible IBANs
+                .filter(dto -> !dto.getIbans().isEmpty())
                 .collect(Collectors.toList());
+
+        return new PageImpl<>(dtoList, pageable, usersPage.getTotalElements());
     }
 
-    public List<AccountLookupDto> getAllUsersWithIbans() {
-        List<User> users = userRepository.findAllApprovedCustomersWithAccounts();
-        return users.stream()
+    // paginated "get all"
+    public Page<AccountLookupDto> getAllUsersWithIbans(Pageable pageable) {
+        Page<User> usersPage = userRepository.findApprovedUsersWithAccounts(null, null, pageable);
+
+        List<AccountLookupDto> dtoList = usersPage.getContent().stream()
                 .map(user -> new AccountLookupDto(
                         user.getFirstName(),
                         user.getLastName(),
@@ -208,6 +199,7 @@ public class AccountService {
                                 .collect(Collectors.toList())
                 ))
                 .collect(Collectors.toList());
-    }
 
+        return new PageImpl<>(dtoList, pageable, usersPage.getTotalElements());
+    }
 }

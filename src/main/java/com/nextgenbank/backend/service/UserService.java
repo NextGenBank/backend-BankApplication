@@ -124,4 +124,9 @@ public class UserService {
         Account savedAccount = accountRepository.save(account);
         System.out.println("Created " + accountType + " account with IBAN: " + savedAccount.getIBAN());
     }
+
+    public User getByEmailOrThrow(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+    }
 }

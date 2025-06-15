@@ -8,6 +8,7 @@ import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.UserRepository;
 
 import com.nextgenbank.backend.service.AccountService;
+import com.nextgenbank.backend.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -16,28 +17,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.stream.Collectors;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+
 
 @RestController
 @RequestMapping("/api/accounts")
 public class AccountController {
 
-    private final AccountRepository accountRepository;
-    private final UserRepository userRepository;
+    private final UserService userService;
     private final AccountService accountService;
 
-    public AccountController(AccountRepository accountRepository, UserRepository userRepository, AccountService accountService) {
-        this.accountRepository = accountRepository;
-        this.userRepository = userRepository;
+    public AccountController(UserService userService, AccountService accountService) {
+        this.userService = userService;
         this.accountService = accountService;
     }
 
+
     @GetMapping("/my")
-    public ResponseEntity<List<AccountDto>> getMyAccounts(Authentication authentication) {
-        String email = authentication.getName();
-        User user = userRepository.findByEmail(email).orElseThrow();
-        List<Account> accounts = accountRepository.findByCustomer(user);
-        List<AccountDto> result = accounts.stream().map(AccountDto::new).toList();
-        return ResponseEntity.ok(result);
+    public ResponseEntity<?> getMyAccounts(@AuthenticationPrincipal UserDetails userDetails) {
+        User user = userService.getByEmailOrThrow(userDetails.getUsername());
+        return ResponseEntity.ok(accountService.getAccountsForUser(user));
     }
 
     @GetMapping("/customer/{customerId}")

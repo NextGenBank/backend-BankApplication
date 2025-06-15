@@ -201,4 +201,8 @@ public class AccountService {
         return new org.springframework.data.domain.PageImpl<>(dtos, pageable, usersPage.getTotalElements());
     }
 
+    public List<Account> getAccountsForUser(User user) {
+        return accountRepository.findByCustomer(user);
+    }
+
 }

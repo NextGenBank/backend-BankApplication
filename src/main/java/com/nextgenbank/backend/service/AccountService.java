@@ -190,16 +190,15 @@ public class AccountService {
     public Page<AccountLookupDto> getAllUsersWithIbans(Pageable pageable) {
         Page<User> usersPage = userRepository.findApprovedUsersWithAccounts(null, null, pageable);
 
-        List<AccountLookupDto> dtoList = usersPage.getContent().stream()
+        List<AccountLookupDto> dtos = usersPage.getContent().stream()
                 .map(user -> new AccountLookupDto(
                         user.getFirstName(),
                         user.getLastName(),
-                        user.getAccountsOwned().stream()
-                                .map(Account::getIBAN)
-                                .collect(Collectors.toList())
+                        user.getAccountsOwned().stream().map(Account::getIBAN).toList()
                 ))
-                .collect(Collectors.toList());
+                .toList();
 
-        return new PageImpl<>(dtoList, pageable, usersPage.getTotalElements());
+        return new org.springframework.data.domain.PageImpl<>(dtos, pageable, usersPage.getTotalElements());
     }
+
 }

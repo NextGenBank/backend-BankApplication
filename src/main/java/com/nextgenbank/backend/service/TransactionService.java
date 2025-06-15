@@ -27,6 +27,9 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 @Service
 public class TransactionService {
 
@@ -46,62 +49,20 @@ public class TransactionService {
         this.userRepository = userRepository;
     }
 
-    public List<TransactionResponseDto> getTransactionsForUser(User user,
-                                                               String iban,
-                                                               String name,
-                                                               String directionParam,
-                                                               String sort,
-                                                               String startDate,
-                                                               String endDate,
-                                                               BigDecimal amount,
-                                                               String amountFilter) {
-        // Convert TransactionDirection
-        TransactionDirection direction = null;
-        if (directionParam != null && !directionParam.isEmpty()) {
-            try {
-                direction = TransactionDirection.valueOf(directionParam.toUpperCase());
-            } catch (IllegalArgumentException ignored) {}
-        }
-
-        // Convert LocalDate range
-        LocalDate start = null;
-        LocalDate end = null;
-        try {
-            if (startDate != null && !startDate.isEmpty()) {
-                start = LocalDate.parse(startDate);
-            }
-            if (endDate != null && !endDate.isEmpty()) {
-                end = LocalDate.parse(endDate);
-            }
-        } catch (Exception ignored) {}
-
-        // Build the Specification
-        Specification<Transaction> spec = Specification
-                .where((Specification<Transaction>) (root, query, cb) -> {
-                    Join<Object, Object> fa = root.join("fromAccount", JoinType.LEFT);
-                    Join<Object, Object> ta = root.join("toAccount", JoinType.LEFT);
-                    return cb.or(
-                            cb.equal(fa.get("customer").get("userId"), user.getUserId()),
-                            cb.equal(ta.get("customer").get("userId"), user.getUserId())
-                    );
-                })
-                .and(TransactionSpecification.filterByCriteria(
-                        user.getUserId(),
-                        iban,
-                        name,
-                        direction,
-                        start,
-                        end,
-                        amount,
-                        amountFilter
-                ));
-
-        // Execute query and map results
-        List<Transaction> transactions = transactionRepository.findAll(spec);
-
-        return transactions.stream()
-                .map(txn -> TransactionMapper.toResponseDto(txn, user.getUserId()))
-                .collect(Collectors.toList());
+    public Page<Transaction> getFilteredTransactionsForUser(
+            Long userId,
+            String iban,
+            String name,
+            String direction,
+            String startDate,
+            String endDate,
+            BigDecimal amount,
+            String amountFilter,
+            Pageable pageable
+    ) {
+        return transactionRepository.findAllByUserIdWithFilters(
+                userId, iban, name, direction, startDate, endDate, amount, amountFilter, pageable
+        );
     }
 
     public List<TransactionDto> getAllTransactions() {

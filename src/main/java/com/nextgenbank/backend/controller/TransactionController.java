@@ -1,5 +1,6 @@
 package com.nextgenbank.backend.controller;
 
+import com.nextgenbank.backend.mapper.TransactionMapper;
 import com.nextgenbank.backend.model.dto.TransactionDto;
 import com.nextgenbank.backend.model.dto.SwitchFundsRequestDto;
 import com.nextgenbank.backend.model.dto.SwitchFundsResponseDto;
@@ -16,32 +17,54 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
+import com.nextgenbank.backend.model.User;
+import com.nextgenbank.backend.model.Transaction;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import java.security.Principal;
+import com.nextgenbank.backend.repository.UserRepository;
+
 @RestController
 @RequestMapping("/api/transactions")
 @CrossOrigin(origins = "http://localhost:5173")
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final UserRepository userRepository;
 
-    public TransactionController(TransactionService transactionService) {
+    public TransactionController(TransactionService transactionService, UserRepository userRepository) {
         this.transactionService = transactionService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
-    public List<TransactionResponseDto> getUserTransactions(
-            @CurrentUser UserPrincipal principal,
+    public ResponseEntity<Page<TransactionResponseDto>> getTransactions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String iban,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) String sort,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) BigDecimal amount,
-            @RequestParam(required = false) String amountFilter // EQUAL, LESS, GREATER
+            @RequestParam(required = false) String amountFilter,
+            Principal principal
     ) {
-        return transactionService.getTransactionsForUser(principal.getUser(), iban, name, type, sort, startDate, endDate, amount, amountFilter);
-    }
+        User user = userRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Transaction> pageResult = transactionService.getFilteredTransactionsForUser(
+                user.getUserId(), iban, name, type, startDate, endDate, amount, amountFilter, pageable
+        );
+
+        Page<TransactionResponseDto> dtoPage = pageResult.map(txn ->
+                TransactionMapper.toResponseDto(txn, user.getUserId()));
+
+        return ResponseEntity.ok(dtoPage);
+    }
 
     @GetMapping("/all")
     public ResponseEntity<List<TransactionDto>> getAllTransactions() {

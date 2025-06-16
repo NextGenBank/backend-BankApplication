@@ -1,29 +1,27 @@
 package com.nextgenbank.backend.service;
 
 import com.nextgenbank.backend.model.*;
-import com.nextgenbank.backend.model.dto.TransactionResponseDto;
 import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.TransactionRepository;
 import com.nextgenbank.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 public class TransactionServiceTest {
 
     private TransactionRepository transactionRepository;
-    private TransactionService transactionService;
     private AccountRepository accountRepository;
     private UserRepository userRepository;
+    private TransactionService transactionService;
 
     @BeforeEach
     void setUp() {
@@ -34,118 +32,104 @@ public class TransactionServiceTest {
     }
 
     @Test
-    void getTransactionsForUser_shouldReturnAllMatchingTransactions() {
-        User user = createUser(1L, "Alice", "Smith");
-        Account fromAccount = createAccount("IBAN1", user);
-        Account toAccount = createAccount("IBAN2", user);
+    void shouldReturnAllTransactionsForUser() {
+        Transaction txn = mockTransaction(1L);
+        Page<Transaction> page = new PageImpl<>(List.of(txn));
 
-        Transaction txn = createTransaction(1L, fromAccount, toAccount, new BigDecimal("100.00"), LocalDateTime.now());
-        when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of(txn));
+        when(transactionRepository.findAllByUserIdWithFilters(
+                eq(1L), any(), any(), any(), any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(page);
 
-        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(
-                user, null, null, null, null, null, null, null, null
+        Page<Transaction> result = transactionService.getFilteredTransactionsForUser(
+                1L, null, null, null, null, null, null, null, PageRequest.of(0, 10)
         );
 
-        assertEquals(1, result.size());
-        assertEquals("INTERNAL", result.get(0).direction());
+        assertEquals(1, result.getTotalElements());
+        assertEquals(txn.getTransactionId(), result.getContent().get(0).getTransactionId());
     }
 
     @Test
-    void getTransactionsForUser_shouldFilterByIban() {
-        User user = createUser(1L, "Alice", "Smith");
-        Account fromAccount = createAccount("FILTER-MATCH", user);
-        Account toAccount = createAccount("OTHER", user);
+    void shouldFilterByIban() {
+        Transaction txn = mockTransaction(2L);
+        Page<Transaction> page = new PageImpl<>(List.of(txn));
 
-        Transaction txn = createTransaction(2L, fromAccount, toAccount, new BigDecimal("50.00"), LocalDateTime.now());
-        when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of(txn));
+        when(transactionRepository.findAllByUserIdWithFilters(
+                eq(1L), eq("NL01IBAN"), any(), any(), any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(page);
 
-        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(
-                user, "FILTER-MATCH", null, null, null, null, null, null, null
+        Page<Transaction> result = transactionService.getFilteredTransactionsForUser(
+                1L, "NL01IBAN", null, null, null, null, null, null, PageRequest.of(0, 10)
         );
 
-        assertEquals(1, result.size());
+        assertEquals(1, result.getTotalElements());
     }
 
     @Test
-    void getTransactionsForUser_shouldFilterByName() {
-        User alice = createUser(1L, "Alice", "Smith");
-        User bob = createUser(2L, "Bob", "Brown");
-        Account from = createAccount("FROM", alice);
-        Account to = createAccount("TO", bob);
+    void shouldFilterByName() {
+        Transaction txn = mockTransaction(3L);
+        Page<Transaction> page = new PageImpl<>(List.of(txn));
 
-        Transaction txn = createTransaction(3L, from, to, new BigDecimal("75.00"), LocalDateTime.now());
-        when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of(txn));
+        when(transactionRepository.findAllByUserIdWithFilters(
+                eq(1L), any(), eq("smith"), any(), any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(page);
 
-        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(
-                alice, null, "bob", null, null, null, null, null, null
+        Page<Transaction> result = transactionService.getFilteredTransactionsForUser(
+                1L, null, "smith", null, null, null, null, null, PageRequest.of(0, 10)
         );
 
-        assertEquals(1, result.size());
-        assertEquals("Bob Brown", result.get(0).toName());
+        assertEquals(1, result.getTotalElements());
     }
 
     @Test
-    void getTransactionsForUser_shouldFilterByType() {
-        User user = createUser(1L, "Alice", "Smith");
-        User receiver = createUser(2L, "John", "Doe");
-        Account from = createAccount("FROM", user);
-        Account to = createAccount("TO", receiver);
+    void shouldFilterByDirection() {
+        Transaction txn = mockTransaction(4L);
+        Page<Transaction> page = new PageImpl<>(List.of(txn));
 
-        Transaction txn = createTransaction(4L, from, to, new BigDecimal("80.00"), LocalDateTime.now());
-        when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of(txn));
+        when(transactionRepository.findAllByUserIdWithFilters(
+                eq(1L), any(), any(), eq("INCOMING"), any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(page);
 
-        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(
-                user, null, null, "outgoing", null, null, null, null, null
+        Page<Transaction> result = transactionService.getFilteredTransactionsForUser(
+                1L, null, null, "INCOMING", null, null, null, null, PageRequest.of(0, 10)
         );
 
-        assertEquals(1, result.size());
-        assertEquals("OUTGOING", result.get(0).direction());
+        assertEquals(1, result.getTotalElements());
     }
 
     @Test
-    void getTransactionsForUser_shouldSortByAmount() {
-        User user = createUser(1L, "Alice", "Smith");
-        Account from = createAccount("FROM", user);
-        Account to = createAccount("TO", user);
+    void shouldFilterByAmount() {
+        Transaction txn = mockTransaction(5L);
+        Page<Transaction> page = new PageImpl<>(List.of(txn));
 
-        Transaction txn1 = createTransaction(5L, from, to, new BigDecimal("100.00"), LocalDateTime.now());
-        Transaction txn2 = createTransaction(6L, from, to, new BigDecimal("200.00"), LocalDateTime.now());
+        when(transactionRepository.findAllByUserIdWithFilters(
+                eq(1L), any(), any(), any(), any(), any(), eq(new BigDecimal("100.00")), eq("EQUAL"), any(Pageable.class)))
+                .thenReturn(page);
 
-        // Return in descending order to match expected result
-        when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of(txn2, txn1));
-
-        List<TransactionResponseDto> result = transactionService.getTransactionsForUser(
-                user, null, null, null, "amount", null, null, null, null
+        Page<Transaction> result = transactionService.getFilteredTransactionsForUser(
+                1L, null, null, null, null, null, new BigDecimal("100.00"), "EQUAL", PageRequest.of(0, 10)
         );
 
-        assertEquals(2, result.size());
-        assertTrue(result.get(0).amount().compareTo(result.get(1).amount()) > 0);
+        assertEquals(1, result.getTotalElements());
     }
 
+    private Transaction mockTransaction(Long id) {
+        Transaction t = new Transaction();
+        t.setTransactionId(id);
+        t.setAmount(new BigDecimal("100.00"));
+        t.setTimestamp(LocalDateTime.now());
 
-    private User createUser(Long id, String firstName, String lastName) {
-        User user = new User();
-        user.setUserId(id);
-        user.setFirstName(firstName);
-        user.setLastName(lastName);
-        return user;
-    }
+        Account from = new Account();
+        from.setIBAN("FROM_IBAN");
+        from.setCustomer(new User());
 
-    private Account createAccount(String iban, User owner) {
-        Account account = new Account();
-        account.setIBAN(iban);
-        account.setCustomer(owner);
-        return account;
-    }
+        Account to = new Account();
+        to.setIBAN("TO_IBAN");
+        to.setCustomer(new User());
 
-    private Transaction createTransaction(Long id, Account from, Account to, BigDecimal amount, LocalDateTime time) {
-        Transaction txn = new Transaction();
-        txn.setTransactionId(id);
-        txn.setFromAccount(from);
-        txn.setToAccount(to);
-        txn.setAmount(amount);
-        txn.setTimestamp(time);
-        txn.setTransactionType(TransactionType.TRANSFER);
-        return txn;
+        t.setFromAccount(from);
+        t.setToAccount(to);
+        t.setTransactionType(TransactionType.TRANSFER);
+
+        return t;
     }
 }

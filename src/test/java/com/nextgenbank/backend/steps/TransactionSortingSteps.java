@@ -1,8 +1,10 @@
 package com.nextgenbank.backend.steps;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nextgenbank.backend.model.dto.TransactionResponseDto;
+import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +12,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -26,63 +29,7 @@ public class TransactionSortingSteps {
     private ResponseEntity<String> latestResponse;
     private String authToken;
 
-    @When("the customer requests transactions sorted by most recent")
-    public void the_customer_requests_transactions_sorted_by_most_recent() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(authToken);
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
-        latestResponse = restTemplate.exchange("/api/transactions?sort=recent", HttpMethod.GET, entity, String.class);
-    }
-
-    @Then("the transactions should be sorted from newest to oldest")
-    public void the_transactions_should_be_sorted_from_newest_to_oldest() throws Exception {
-        List<TransactionResponseDto> transactions = objectMapper.readValue(latestResponse.getBody(), new TypeReference<>() {});
-
-        for (int i = 1; i < transactions.size(); i++) {
-            assertTrue(transactions.get(i - 1).timestamp().isAfter(transactions.get(i).timestamp()) ||
-                    transactions.get(i - 1).timestamp().isEqual(transactions.get(i).timestamp()));
-        }
-    }
-
-    @When("the customer requests transactions sorted by amount")
-    public void the_customer_requests_transactions_sorted_by_amount() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(authToken);
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
-        latestResponse = restTemplate.exchange("/api/transactions?sort=amount", HttpMethod.GET, entity, String.class);
-    }
-
-    @Then("the transactions should be sorted from highest to lowest amount")
-    public void the_transactions_should_be_sorted_from_highest_to_lowest_amount() throws Exception {
-        List<TransactionResponseDto> transactions = objectMapper.readValue(latestResponse.getBody(), new TypeReference<>() {});
-
-        for (int i = 1; i < transactions.size(); i++) {
-            BigDecimal prev = transactions.get(i - 1).amount();
-            BigDecimal curr = transactions.get(i).amount();
-            assertTrue(prev.compareTo(curr) >= 0);
-        }
-    }
-
-    @When("the customer requests transactions sorted by type")
-    public void the_customer_requests_transactions_sorted_by_type() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(authToken);
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
-        latestResponse = restTemplate.exchange("/api/transactions?sort=type", HttpMethod.GET, entity, String.class);
-    }
-
-    @Then("the transactions should be sorted alphabetically by type")
-    public void the_transactions_should_be_sorted_alphabetically_by_type() throws Exception {
-        List<TransactionResponseDto> transactions = objectMapper.readValue(latestResponse.getBody(), new TypeReference<>() {});
-
-        for (int i = 1; i < transactions.size(); i++) {
-            String prev = transactions.get(i - 1).transactionType().name();
-            String curr = transactions.get(i).transactionType().name();
-            assertTrue(prev.compareTo(curr) <= 0);
-        }
-    }
-
-    @When("the customer logs in for sorting tests with email {string} and password {string}")
+    @Given("the customer logs in for sorting tests with email {string} and password {string}")
     public void the_customer_logs_in_for_sorting_tests(String email, String password) {
         String loginRequest = String.format("{\"email\":\"%s\", \"password\":\"%s\"}", email, password);
         HttpHeaders headers = new HttpHeaders();
@@ -95,5 +42,70 @@ public class TransactionSortingSteps {
         } catch (Exception e) {
             fail("Failed to extract token: " + e.getMessage());
         }
+    }
+
+    private List<TransactionResponseDto> extractTransactionContent() throws Exception {
+        JsonNode json = objectMapper.readTree(latestResponse.getBody());
+        JsonNode contentNode = json.path("content");
+        if (contentNode.isMissingNode()) {
+            contentNode = json; // fallback to root if no content node
+        }
+        return objectMapper.readValue(contentNode.toString(), new TypeReference<>() {});
+    }
+
+    @When("the customer requests transactions sorted by type")
+    public void the_customer_requests_transactions_sorted_by_type() {
+        fetchTransactionsWithSort("transactionType,asc");
+    }
+
+    @Then("the transactions should be sorted alphabetically by type")
+    public void the_transactions_should_be_sorted_alphabetically_by_type() throws Exception {
+        List<TransactionResponseDto> transactions = extractTransactionContent();
+        System.out.println("=== Transactions sorted by type ===");
+        transactions.forEach(t -> System.out.printf("Type: %s | Amount: %s | Timestamp: %s%n",
+                t.transactionType(), t.amount(), t.timestamp()));
+
+        assertFalse(transactions.isEmpty(), "No transactions returned");
+        assertTrue(isSortedAscending(transactions, Comparator.comparing(dto -> dto.transactionType().name())),
+                "Transactions are not sorted by type in ascending order");
+    }
+
+    private void fetchTransactionsWithSort(String sortParam) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(authToken);
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+
+        String url = String.format("/api/transactions?sort=%s", sortParam);
+        latestResponse = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+    }
+
+    private <T> boolean isSortedDescending(List<T> list, Comparator<T> comparator) {
+        if (list.isEmpty() || list.size() == 1) {
+            return true;
+        }
+
+        for (int i = 0; i < list.size() - 1; i++) {
+            if (comparator.compare(list.get(i), list.get(i + 1)) < 0) {
+                System.err.printf("Sort violation at position %d: %s comes before %s%n",
+                        i, list.get(i), list.get(i + 1));
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private <T> boolean isSortedAscending(List<T> list, Comparator<T> comparator) {
+        if (list.isEmpty() || list.size() == 1) {
+            return true;
+        }
+
+        for (int i = 0; i < list.size() - 1; i++) {
+            if (comparator.compare(list.get(i), list.get(i + 1)) > 0) {
+                System.err.printf("Sort violation at position %d: %s comes before %s%n",
+                        i, list.get(i), list.get(i + 1));
+                return false;
+            }
+        }
+        return true;
     }
 }

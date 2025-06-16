@@ -1,29 +1,26 @@
 package com.nextgenbank.backend.controller;
 
 import com.nextgenbank.backend.mapper.TransactionMapper;
-import com.nextgenbank.backend.model.dto.TransactionDto;
-import com.nextgenbank.backend.model.dto.SwitchFundsRequestDto;
-import com.nextgenbank.backend.model.dto.SwitchFundsResponseDto;
-import com.nextgenbank.backend.model.dto.TransactionResponseDto;
-import com.nextgenbank.backend.model.dto.TransferRequestDto;
+import com.nextgenbank.backend.model.User;
+import com.nextgenbank.backend.model.Transaction;
+import com.nextgenbank.backend.model.dto.*;
 import com.nextgenbank.backend.security.CurrentUser;
 import com.nextgenbank.backend.security.UserPrincipal;
 import com.nextgenbank.backend.service.TransactionService;
+import com.nextgenbank.backend.service.UserService;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
-import com.nextgenbank.backend.model.User;
-import com.nextgenbank.backend.model.Transaction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
-import java.security.Principal;
-import com.nextgenbank.backend.repository.UserRepository;
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -31,11 +28,11 @@ import com.nextgenbank.backend.repository.UserRepository;
 public class TransactionController {
 
     private final TransactionService transactionService;
-    private final UserRepository userRepository;
+    private final UserService userService;
 
-    public TransactionController(TransactionService transactionService, UserRepository userRepository) {
+    public TransactionController(TransactionService transactionService, UserService userService) {
         this.transactionService = transactionService;
-        this.userRepository = userRepository;
+        this.userService = userService;
     }
 
     @GetMapping
@@ -51,9 +48,7 @@ public class TransactionController {
             @RequestParam(required = false) String amountFilter,
             Principal principal
     ) {
-        User user = userRepository.findByEmail(principal.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+        User user = userService.getByEmailOrThrow(principal.getName());
         Pageable pageable = PageRequest.of(page, size);
 
         Page<Transaction> pageResult = transactionService.getFilteredTransactionsForUser(

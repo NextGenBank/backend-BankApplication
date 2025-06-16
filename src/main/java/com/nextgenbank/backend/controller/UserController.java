@@ -3,7 +3,6 @@ package com.nextgenbank.backend.controller;
 import com.nextgenbank.backend.model.User;
 import com.nextgenbank.backend.model.dto.RegisterRequestDto;
 import com.nextgenbank.backend.model.dto.UserDto;
-import com.nextgenbank.backend.repository.UserRepository;
 import com.nextgenbank.backend.security.JwtProvider;
 import com.nextgenbank.backend.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -16,12 +15,10 @@ import java.util.Map;
 @RequestMapping("/api/user")
 public class UserController {
 
-    private final UserRepository userRepository;
     private final JwtProvider jwtProvider;
     private final UserService userService;
 
-    public UserController(UserRepository userRepository, JwtProvider jwtProvider, UserService userService) {
-        this.userRepository = userRepository;
+    public UserController(JwtProvider jwtProvider, UserService userService) {
         this.jwtProvider = jwtProvider;
         this.userService = userService;
     }
@@ -29,7 +26,7 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserDto> getCurrentUser(Authentication authentication) {
         String email = authentication.getName();
-        User user = userRepository.findByEmail(email).orElseThrow();
+        User user = userService.getByEmailOrThrow(email);
         return ResponseEntity.ok(new UserDto(user));
     }
 

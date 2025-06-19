@@ -35,7 +35,8 @@ public class IbanLookupSteps {
         HttpEntity<String> request = new HttpEntity<>(payload, headers);
 
         ResponseEntity<String> loginResponse = restTemplate.postForEntity(loginUrl, request, String.class);
-        String token = JsonPath.read(loginResponse.getBody(), "$.token");
+        //here i use JsonPath to extract the token field from the JSON string
+        String token = JsonPath.read(loginResponse.getBody(), "$.token");//means "look for the key token at the top level"
         this.headers = new HttpHeaders();
         this.headers.setBearerAuth(token);
     }
@@ -49,7 +50,7 @@ public class IbanLookupSteps {
 
     @When("the user searches for IBANs using partial IBAN {string}")
     public void the_user_searches_by_iban(String iban) {
-        String url = "/api/accounts/lookup?iban=" + iban;
+        String url = "/api/accounts/lookup?iban=" + iban; //it appends the provided partial IBAN to the base lookup url
         HttpEntity<Void> entity = new HttpEntity<>(headers);
         response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
     }
@@ -72,8 +73,9 @@ public class IbanLookupSteps {
     public void the_response_should_include_users_with_iban_containing(String partialIban) throws Exception {
         List<AccountLookupDto> users = extractContent();
         boolean found = users.stream()
+                //fatten all those separate streams into one big stream of IBANs
                 .flatMap(u -> u.getIbans().stream())
-                .anyMatch(iban -> iban.contains(partialIban));
+                .anyMatch(iban -> iban.contains(partialIban)); //Im going through all the IBANs and check if any of them contain the partialIban
         Assertions.assertTrue(found, "No IBANs containing " + partialIban + " found.");
     }
 
@@ -89,8 +91,8 @@ public class IbanLookupSteps {
     }
 
     private List<AccountLookupDto> extractContent() throws Exception {
-        return objectMapper.readValue(
-                JsonPath.read(response.getBody(), "$.content").toString(),
+        return objectMapper.readValue( //deserialize JSON into java objects, then it converts a JSON string into a javaList<AccountLookupDto>
+                JsonPath.read(response.getBody(), "$.content").toString(), //jsonPath to extract just the content field from the response body,and the $.content assumes the response is paginated and has a specific structure
                 new TypeReference<>() {}
         );
     }

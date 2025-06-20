@@ -57,7 +57,7 @@ public class JwtFilter extends OncePerRequestFilter {
             Claims claims = jwtProvider.extractAllClaims(token); //decodes the JWT and verifies its signature
 
             //Header, Payload (Claims), and Signature
-            String email = claims.getSubject(); //Claims: Contains JWT payload (e.g., { "sub": "user@example.com", "role": "CUSTOMER" })
+            String email = claims.getSubject(); //Claims: Contains JWT payload ({ "sub": "user@example.com", "role": "CUSTOMER" })
             String role = claims.get("role", String.class); // Extracts custom "role" claim
 
             //.getContext() returns the SecurityContext which holds the Authentication object

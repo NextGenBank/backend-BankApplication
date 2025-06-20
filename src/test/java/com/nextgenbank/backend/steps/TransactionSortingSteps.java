@@ -67,7 +67,7 @@ public class TransactionSortingSteps {
                 t.transactionType(), t.amount(), t.timestamp()));
 
         assertFalse(transactions.isEmpty(), "No transactions returned");
-        assertTrue(isSortedAscending(transactions, Comparator.comparing(dto -> dto.transactionType().name())),
+        assertTrue(isSortedAscending(transactions, Comparator.comparing(dto -> dto.transactionType().name())), //returns the enum name as a string for comparison
                 "Transactions are not sorted by type in ascending order");
     }
 

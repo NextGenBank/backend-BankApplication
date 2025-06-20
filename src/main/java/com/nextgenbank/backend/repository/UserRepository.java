@@ -3,6 +3,8 @@ package com.nextgenbank.backend.repository;
 import com.nextgenbank.backend.model.User;
 import com.nextgenbank.backend.model.UserRole;
 import com.nextgenbank.backend.model.UserStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,8 +20,13 @@ public interface UserRepository extends JpaRepository<User, Long>, UserRepositor
     Optional<User> findByPhoneNumber(String phoneNumber);
 
     List<User> findByFirstNameIgnoreCaseAndLastNameIgnoreCaseAndStatus(String firstName, String lastName, UserStatus userStatus);
-    List<User> findByRoleAndStatus(UserRole role, UserStatus status);
-    List<User> findByRole(UserRole role);
+    
+    // Paginated queries for Employee features
+    Page<User> findByRoleAndStatus(UserRole role, UserStatus status, Pageable pageable);
+    List<User> findByRoleAndStatus(UserRole role, UserStatus status); // Keep non-paginated version for compatibility
+    
+    Page<User> findByRole(UserRole role, Pageable pageable);
+    List<User> findByRole(UserRole role); // Keep non-paginated version for compatibility
 
     @Query("""
         SELECT DISTINCT u FROM User u

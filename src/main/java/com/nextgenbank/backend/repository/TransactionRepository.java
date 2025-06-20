@@ -13,10 +13,16 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction>, TransactionRepositoryCustom {
+    // Non-paginated methods (for backward compatibility)
     List<Transaction> findByFromAccountOrToAccountOrderByTimestampDesc(Account fromAccount, Account toAccount);
     List<Transaction> findAllByOrderByTimestampDesc();
     List<Transaction> findByInitiatorOrderByTimestampDesc(User initiator);
     List<Transaction> findByFromAccount_CustomerOrToAccount_CustomerOrderByTimestampDesc(User customer, User sameCustomer);
+    
+    // Paginated methods
+    Page<Transaction> findAllByOrderByTimestampDesc(Pageable pageable);
+    Page<Transaction> findByInitiatorOrderByTimestampDesc(User initiator, Pageable pageable);
+    Page<Transaction> findByFromAccount_CustomerOrToAccount_CustomerOrderByTimestampDesc(User customer, User sameCustomer, Pageable pageable);
 
     @Query("""
        SELECT t
@@ -27,4 +33,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
           OR (ta.customer.userId = :userId)
     """)
     Page<Transaction> findAllByUserIdPaged(@Param("userId") Long userId, Pageable pageable);
+    
+    @Query("""
+       SELECT t
+       FROM Transaction t
+       WHERE t.amount = 0
+    """)
+    Page<Transaction> findPendingTransactions(Pageable pageable);
 }

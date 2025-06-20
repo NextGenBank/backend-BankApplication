@@ -9,26 +9,19 @@ import com.nextgenbank.backend.model.dto.SwitchFundsResponseDto;
 import com.nextgenbank.backend.model.dto.TransactionResponseDto;
 import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.TransactionRepository;
-import com.nextgenbank.backend.specification.TransactionSpecification;
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
 import jakarta.transaction.Transactional;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import com.nextgenbank.backend.mapper.TransactionMapper;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 @Service
 public class TransactionService {
@@ -38,6 +31,9 @@ public class TransactionService {
     private final UserRepository userRepository;
 
     private static final Logger logger = LoggerFactory.getLogger(TransactionService.class);
+    
+    // Default transfer limit if not set
+    private static final BigDecimal DEFAULT_TRANSFER_LIMIT = new BigDecimal("1000.00");
 
     public TransactionService(
             TransactionRepository transactionRepository,
@@ -49,6 +45,9 @@ public class TransactionService {
         this.userRepository = userRepository;
     }
 
+    /**
+     * Get filtered transactions for a user with pagination
+     */
     public Page<Transaction> getFilteredTransactionsForUser(
             Long userId,
             String iban,
@@ -65,6 +64,17 @@ public class TransactionService {
         );
     }
 
+    /**
+     * Get all transactions with pagination
+     */
+    public Page<TransactionDto> getAllTransactionsPaginated(Pageable pageable) {
+        Page<Transaction> transactions = transactionRepository.findAllByOrderByTimestampDesc(pageable);
+        return transactions.map(TransactionDto::new);
+    }
+
+    /**
+     * Get all transactions (non-paginated, for backward compatibility)
+     */
     public List<TransactionDto> getAllTransactions() {
         return transactionRepository.findAllByOrderByTimestampDesc()
                 .stream()
@@ -73,7 +83,21 @@ public class TransactionService {
     }
 
     /**
-     * Get transactions for a specific customer
+     * Get transactions for a specific customer with pagination
+     */
+    public Page<TransactionDto> getTransactionsByCustomerIdPaginated(Long customerId, Pageable pageable) {
+        User customer = userRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("Customer not found"));
+
+        Page<Transaction> transactionsPage = transactionRepository
+                .findByFromAccount_CustomerOrToAccount_CustomerOrderByTimestampDesc(
+                        customer, customer, pageable);
+                        
+        return transactionsPage.map(TransactionDto::new);
+    }
+
+    /**
+     * Get transactions for a specific customer (non-paginated, for backward compatibility)
      */
     public List<TransactionDto> getTransactionsByCustomerId(Long customerId) {
         User customer = userRepository.findById(customerId)
@@ -86,121 +110,165 @@ public class TransactionService {
     }
 
     /**
-     * Process a transfer between two accounts
+     * Process a transfer specifically initiated by an employee
+     * Adds additional security checks
      */
     @org.springframework.transaction.annotation.Transactional
-    public TransactionDto transferFunds(TransferRequestDto transferRequestDto) {
-        logger.info("Processing transfer request: {}", transferRequestDto);
+    public TransactionDto processEmployeeTransfer(TransferRequestDto transferRequest) {
+        // Verify the initiator is an employee
+        User initiator = userRepository.findById(transferRequest.getInitiatorId())
+                .orElseThrow(() -> new RuntimeException("Initiator not found"));
+                
+        if (initiator.getRole() != UserRole.EMPLOYEE) {
+            logger.warn("Security violation: Non-employee {} attempted to use employee transfer endpoint",
+                    initiator.getEmail());
+            throw new SecurityException("Only employees can initiate transfers through this endpoint");
+        }
+        
+        return transferFunds(transferRequest);
+    }
+
+    /**
+     * Process a transfer between two accounts
+     * This is the core transfer logic used by both customer and employee-initiated transfers
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public TransactionDto transferFunds(TransferRequestDto transferRequest) {
+        logger.info("Processing transfer request: {}", transferRequest);
 
         // Get the source account
-        Account fromAccount = accountRepository.findById(transferRequestDto.getAccountNumber())
-                .orElseThrow(() -> new RuntimeException("Source account not found"));
-        logger.info("From account: {} (Type: {}, Balance: {}, Limit: {})",
-                fromAccount.getIBAN(), fromAccount.getAccountType(),
-                fromAccount.getBalance(), fromAccount.getAbsoluteTransferLimit());
+        Account sourceAccount = accountRepository.findById(transferRequest.getAccountNumber())
+                .orElseThrow(() -> new IllegalArgumentException("Source account not found"));
+        logger.info("Source account: {} (Type: {}, Balance: {}, Limit: {})",
+                sourceAccount.getIBAN(), sourceAccount.getAccountType(),
+                sourceAccount.getBalance(), sourceAccount.getAbsoluteTransferLimit());
 
         // Get the destination account
-        Account toAccount = accountRepository.findById(transferRequestDto.getToAccount())
-                .orElseThrow(() -> new RuntimeException("Destination account not found"));
-        logger.info("To account: {} (Type: {}, Balance: {})",
-                toAccount.getIBAN(), toAccount.getAccountType(), toAccount.getBalance());
+        Account destinationAccount = accountRepository.findById(transferRequest.getToAccount())
+                .orElseThrow(() -> new IllegalArgumentException("Destination account not found"));
+        logger.info("Destination account: {} (Type: {}, Balance: {})",
+                destinationAccount.getIBAN(), destinationAccount.getAccountType(), 
+                destinationAccount.getBalance());
 
         // Get the initiator
-        User initiator = userRepository.findById(transferRequestDto.getInitiatorId())
-                .orElseThrow(() -> new RuntimeException("Initiator not found"));
+        User initiator = userRepository.findById(transferRequest.getInitiatorId())
+                .orElseThrow(() -> new IllegalArgumentException("Initiator not found"));
         logger.info("Initiator: {} (Role: {})", initiator.getEmail(), initiator.getRole());
 
-        BigDecimal amount = transferRequestDto.getAmount();
-        logger.info("Transfer amount: {}", amount);
+        BigDecimal transferAmount = transferRequest.getAmount();
+        logger.info("Transfer amount: {}", transferAmount);
 
         // Validate the transfer
-        validateTransfer(fromAccount, toAccount, amount);
+        validateTransfer(sourceAccount, destinationAccount, transferAmount);
 
         // Update account balances
-        fromAccount.setBalance(fromAccount.getBalance().subtract(amount));
-        toAccount.setBalance(toAccount.getBalance().add(amount));
+        sourceAccount.setBalance(sourceAccount.getBalance().subtract(transferAmount));
+        destinationAccount.setBalance(destinationAccount.getBalance().add(transferAmount));
 
         // Save updated account balances
-        accountRepository.save(fromAccount);
-        accountRepository.save(toAccount);
+        accountRepository.save(sourceAccount);
+        accountRepository.save(destinationAccount);
 
-        // Create and save the transaction
+        // Create and save the transaction with description
         Transaction transaction = new Transaction();
-        transaction.setFromAccount(fromAccount);
-        transaction.setToAccount(toAccount);
-        transaction.setAmount(amount);
+        transaction.setFromAccount(sourceAccount);
+        transaction.setToAccount(destinationAccount);
+        transaction.setAmount(transferAmount);
         transaction.setTimestamp(LocalDateTime.now());
         transaction.setInitiator(initiator);
         transaction.setTransactionType(TransactionType.TRANSFER);
+        // Add description if provided
+        if (transferRequest.getDescription() != null && !transferRequest.getDescription().trim().isEmpty()) {
+            // Add description handling logic here if needed
+        }
 
         Transaction savedTransaction = transactionRepository.save(transaction);
-
         return new TransactionDto(savedTransaction);
     }
 
     /**
      * Validate a transfer to ensure it meets all requirements
      */
-    private void validateTransfer(Account fromAccount, Account toAccount, BigDecimal amount) {
+    private void validateTransfer(Account sourceAccount, Account destinationAccount, BigDecimal amount) {
         logger.info("Validating transfer: from={}, to={}, amount={}",
-                fromAccount.getIBAN(), toAccount.getIBAN(), amount);
+                sourceAccount.getIBAN(), destinationAccount.getIBAN(), amount);
 
         // Check if accounts are different
-        if (fromAccount.getIBAN().equals(toAccount.getIBAN())) {
+        if (sourceAccount.getIBAN().equals(destinationAccount.getIBAN())) {
             logger.warn("Transfer rejected: Cannot transfer to the same account");
-            throw new RuntimeException("Cannot transfer to the same account");
+            throw new IllegalArgumentException("Cannot transfer to the same account");
         }
 
         // Check if the amount is positive
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             logger.warn("Transfer rejected: Amount must be positive, got {}", amount);
-            throw new RuntimeException("Transfer amount must be positive");
+            throw new IllegalArgumentException("Transfer amount must be positive");
         }
 
         // Check if the source account has sufficient funds
-        BigDecimal balanceAfterTransfer = fromAccount.getBalance().subtract(amount);
+        BigDecimal balanceAfterTransfer = sourceAccount.getBalance().subtract(amount);
         logger.info("Current balance: {}, Amount: {}, Balance after transfer would be: {}",
-                fromAccount.getBalance(), amount, balanceAfterTransfer);
+                sourceAccount.getBalance(), amount, balanceAfterTransfer);
 
         if (balanceAfterTransfer.compareTo(BigDecimal.ZERO) < 0) {
             logger.warn("Transfer rejected: Insufficient funds. Balance: {}, Amount: {}",
-                    fromAccount.getBalance(), amount);
-            throw new RuntimeException("Insufficient funds");
+                    sourceAccount.getBalance(), amount);
+            throw new IllegalArgumentException("Insufficient funds");
         }
 
         // Check if the transfer would exceed the absolute transfer limit
-        if (fromAccount.getAbsoluteTransferLimit() != null) {
-            // The absolute transfer limit is the MAXIMUM amount that can be transferred daily
-            BigDecimal dailyTransferAmount = fromAccount.getDailyTransferAmount() != null ? 
-                    fromAccount.getDailyTransferAmount() : BigDecimal.ZERO;
+        BigDecimal transferLimit = sourceAccount.getAbsoluteTransferLimit() != null ? 
+                sourceAccount.getAbsoluteTransferLimit() : DEFAULT_TRANSFER_LIMIT;
+        
+        // The absolute transfer limit is the MAXIMUM amount that can be transferred daily
+        BigDecimal dailyTransferAmount = sourceAccount.getDailyTransferAmount() != null ? 
+                sourceAccount.getDailyTransferAmount() : BigDecimal.ZERO;
+        
+        // Calculate new daily transfer amount if this transfer goes through
+        BigDecimal newDailyTransferAmount = dailyTransferAmount.add(amount);
+        
+        logger.info("Checking transfer limit: Current daily transfer: {}, This transfer: {}, " +
+                     "Total would be: {}, Daily limit: {}",
+                dailyTransferAmount, amount, newDailyTransferAmount, transferLimit);
+        
+        // Only fail if this transfer would exceed the daily limit
+        if (newDailyTransferAmount.compareTo(transferLimit) > 0) {
+            logger.warn("Transfer rejected: Would exceed daily transfer limit. " +
+                        "Current daily amount: {}, This transfer: {}, Daily limit: {}",
+                    dailyTransferAmount, amount, transferLimit);
             
-            // Calculate new daily transfer amount if this transfer goes through
-            BigDecimal newDailyTransferAmount = dailyTransferAmount.add(amount);
-            
-            logger.info("Checking transfer limit: Current daily transfer: {}, This transfer: {}, " +
-                         "Total would be: {}, Daily limit: {}",
-                    dailyTransferAmount, amount, newDailyTransferAmount,
-                    fromAccount.getAbsoluteTransferLimit());
-            
-            // Only fail if this transfer would exceed the daily limit
-            if (newDailyTransferAmount.compareTo(fromAccount.getAbsoluteTransferLimit()) > 0) {
-                logger.warn("Transfer rejected: Would exceed daily transfer limit. " +
-                            "Current daily amount: {}, This transfer: {}, Daily limit: {}",
-                        dailyTransferAmount, amount, fromAccount.getAbsoluteTransferLimit());
-                
-                // Calculate remaining amount allowed today
-                BigDecimal remainingAllowed = fromAccount.getAbsoluteTransferLimit().subtract(dailyTransferAmount);
-                if (remainingAllowed.compareTo(BigDecimal.ZERO) <= 0) {
-                    throw new RuntimeException("Daily transfer limit reached. No more transfers allowed today.");
-                } else {
-                    throw new RuntimeException("Transfer would exceed daily limit. Maximum transfer allowed today: " + 
-                            remainingAllowed);
-                }
+            // Calculate remaining amount allowed today
+            BigDecimal remainingAllowed = transferLimit.subtract(dailyTransferAmount);
+            if (remainingAllowed.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Daily transfer limit reached. No more transfers allowed today.");
+            } else {
+                throw new IllegalArgumentException("Transfer would exceed daily limit. Maximum transfer allowed today: " + 
+                        remainingAllowed);
             }
-            
-            // Update the daily transfer amount for this account
-            fromAccount.setDailyTransferAmount(newDailyTransferAmount);
         }
+        
+        // Update the daily transfer amount for this account
+        sourceAccount.setDailyTransferAmount(newDailyTransferAmount);
+    }
+
+    /**
+     * Update an account's transfer limit
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public void updateTransferLimit(String accountIban, BigDecimal newLimit) {
+        logger.info("Updating transfer limit for account {}: new limit = {}", accountIban, newLimit);
+        
+        if (newLimit == null || newLimit.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Transfer limit must be a positive number or zero");
+        }
+        
+        Account account = accountRepository.findById(accountIban)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountIban));
+                
+        account.setAbsoluteTransferLimit(newLimit);
+        accountRepository.save(account);
+        
+        logger.info("Transfer limit updated for account {}", accountIban);
     }
 
     /**
@@ -261,12 +329,27 @@ public class TransactionService {
     }
 
     /**
-     * Get pending transactions in the system
-     * For the dashboard metrics
+     * Get pending transactions in the system with pagination
      */
-    public List<TransactionDto> getPendingTransactions() {
+    public Page<TransactionDto> getPendingTransactionsPaginated(Pageable pageable) {
         // Currently just using transactions with amount = 0 as a proxy for pending
         // This should be replaced with actual pending transaction logic
+        List<TransactionDto> pendingTransactions = transactionRepository.findAll().stream()
+                .filter(transaction -> transaction.getAmount().compareTo(BigDecimal.ZERO) == 0)
+                .map(TransactionDto::new)
+                .collect(Collectors.toList());
+                
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), pendingTransactions.size());
+        
+        List<TransactionDto> pageContent = pendingTransactions.subList(start, end);
+        return new PageImpl<>(pageContent, pageable, pendingTransactions.size());
+    }
+
+    /**
+     * Get pending transactions (non-paginated, for backward compatibility)
+     */
+    public List<TransactionDto> getPendingTransactions() {
         return transactionRepository.findAll().stream()
                 .filter(transaction -> transaction.getAmount().compareTo(BigDecimal.ZERO) == 0)
                 .map(TransactionDto::new)

@@ -1,6 +1,8 @@
 package com.nextgenbank.backend.service;
 
 import com.nextgenbank.backend.model.*;
+import com.nextgenbank.backend.model.dto.TransactionDto;
+import com.nextgenbank.backend.model.dto.TransferRequestDto;
 import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.TransactionRepository;
 import com.nextgenbank.backend.repository.UserRepository;
@@ -11,9 +13,13 @@ import org.springframework.data.domain.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 public class TransactionServiceTest {
@@ -110,6 +116,154 @@ public class TransactionServiceTest {
         );
 
         assertEquals(1, result.getTotalElements());
+    }
+    
+    @Test
+    void shouldGetAllTransactionsPaginated() {
+        // Given
+        List<Transaction> transactions = Arrays.asList(
+            mockTransaction(1L),
+            mockTransaction(2L)
+        );
+        Page<Transaction> page = new PageImpl<>(transactions);
+        Pageable pageable = PageRequest.of(0, 10);
+        
+        when(transactionRepository.findAllByOrderByTimestampDesc(pageable)).thenReturn(page);
+        
+        // When
+        Page<TransactionDto> result = transactionService.getAllTransactionsPaginated(pageable);
+        
+        // Then
+        assertEquals(2, result.getTotalElements());
+        verify(transactionRepository).findAllByOrderByTimestampDesc(pageable);
+    }
+    
+    @Test
+    void shouldGetCustomerTransactionsPaginated() {
+        // Given
+        Long customerId = 1L;
+        User customer = new User();
+        customer.setUserId(customerId);
+        customer.setRole(UserRole.CUSTOMER);
+        
+        List<Transaction> transactions = Arrays.asList(
+            mockTransaction(1L),
+            mockTransaction(2L)
+        );
+        Page<Transaction> page = new PageImpl<>(transactions);
+        Pageable pageable = PageRequest.of(0, 10);
+        
+        when(userRepository.findById(customerId)).thenReturn(Optional.of(customer));
+        when(transactionRepository.findByFromAccount_CustomerOrToAccount_CustomerOrderByTimestampDesc(
+            eq(customer), eq(customer), eq(pageable))).thenReturn(page);
+        
+        // When
+        Page<TransactionDto> result = transactionService.getTransactionsByCustomerIdPaginated(customerId, pageable);
+        
+        // Then
+        assertEquals(2, result.getTotalElements());
+        verify(transactionRepository).findByFromAccount_CustomerOrToAccount_CustomerOrderByTimestampDesc(
+            eq(customer), eq(customer), eq(pageable));
+    }
+    
+    @Test
+    void shouldUpdateTransferLimit() {
+        // Given
+        String accountIban = "NL12BANK1234567890";
+        BigDecimal newLimit = new BigDecimal("2000.00");
+        
+        Account account = new Account();
+        account.setIBAN(accountIban);
+        account.setAbsoluteTransferLimit(new BigDecimal("1000.00"));
+        
+        when(accountRepository.findById(accountIban)).thenReturn(Optional.of(account));
+        when(accountRepository.save(any(Account.class))).thenReturn(account);
+        
+        // When
+        transactionService.updateTransferLimit(accountIban, newLimit);
+        
+        // Then
+        verify(accountRepository).findById(accountIban);
+        verify(accountRepository).save(account);
+        assertEquals(newLimit, account.getAbsoluteTransferLimit());
+    }
+    
+    @Test
+    void shouldThrowExceptionForNegativeTransferLimit() {
+        // Given
+        String accountIban = "NL12BANK1234567890";
+        BigDecimal negativeLimit = new BigDecimal("-1000.00");
+        
+        // When & Then
+        Exception exception = assertThrows(IllegalArgumentException.class, 
+            () -> transactionService.updateTransferLimit(accountIban, negativeLimit));
+        
+        assertTrue(exception.getMessage().contains("Transfer limit must be a positive number"));
+        verify(accountRepository, never()).save(any());
+    }
+    
+    @Test
+    void shouldProcessEmployeeTransfer() {
+        // Given
+        TransferRequestDto transferRequest = new TransferRequestDto();
+        transferRequest.setAccountNumber("FROM_IBAN");
+        transferRequest.setToAccount("TO_IBAN");
+        transferRequest.setAmount(new BigDecimal("100.00"));
+        transferRequest.setInitiatorId(1L);
+        
+        User employee = new User();
+        employee.setUserId(1L);
+        employee.setRole(UserRole.EMPLOYEE);
+        
+        Account fromAccount = new Account();
+        fromAccount.setIBAN("FROM_IBAN");
+        fromAccount.setBalance(new BigDecimal("1000.00"));
+        
+        Account toAccount = new Account();
+        toAccount.setIBAN("TO_IBAN");
+        toAccount.setBalance(new BigDecimal("500.00"));
+        
+        Transaction transaction = new Transaction();
+        transaction.setTransactionId(1L);
+        transaction.setAmount(new BigDecimal("100.00"));
+        transaction.setFromAccount(fromAccount);
+        transaction.setToAccount(toAccount);
+        transaction.setInitiator(employee);
+        
+        when(userRepository.findById(1L)).thenReturn(Optional.of(employee));
+        when(accountRepository.findById("FROM_IBAN")).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findById("TO_IBAN")).thenReturn(Optional.of(toAccount));
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(transaction);
+        
+        // When
+        TransactionDto result = transactionService.processEmployeeTransfer(transferRequest);
+        
+        // Then
+        assertNotNull(result);
+        assertEquals(new BigDecimal("100.00"), result.getAmount());
+        verify(accountRepository, times(2)).save(any(Account.class));
+        verify(transactionRepository).save(any(Transaction.class));
+    }
+    
+    @Test
+    void shouldThrowExceptionWhenNonEmployeeInitiatesEmployeeTransfer() {
+        // Given
+        TransferRequestDto transferRequest = new TransferRequestDto();
+        transferRequest.setInitiatorId(1L);
+        
+        User customer = new User();
+        customer.setUserId(1L);
+        customer.setRole(UserRole.CUSTOMER);
+        
+        when(userRepository.findById(1L)).thenReturn(Optional.of(customer));
+        
+        // When & Then
+        Exception exception = assertThrows(SecurityException.class, 
+            () -> transactionService.processEmployeeTransfer(transferRequest));
+        
+        assertTrue(exception.getMessage().contains("Only employees can initiate transfers"));
+        verify(accountRepository, never()).findById(any());
+        verify(transactionRepository, never()).save(any());
     }
 
     private Transaction mockTransaction(Long id) {

@@ -1,13 +1,15 @@
 package com.nextgenbank.backend.service;
 
-import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.UserRole;
 import com.nextgenbank.backend.model.User;
 import com.nextgenbank.backend.model.UserStatus;
 import com.nextgenbank.backend.model.dto.UserDto;
 import com.nextgenbank.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,13 +27,29 @@ public class EmployeeService {
     }
 
     /**
-     * Get all customers in the system
+     * Get all customers in the system (non-paginated version for backwards compatibility)
      */
     public List<UserDto> getAllCustomers() {
         return userRepository.findByRole(UserRole.CUSTOMER)
                 .stream()
                 .map(UserDto::new)
                 .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get all customers with pagination support
+     */
+    public Page<UserDto> getAllCustomersPaginated(Pageable pageable) {
+        Page<User> customerPage = userRepository.findByRole(UserRole.CUSTOMER, pageable);
+        return customerPage.map(UserDto::new);
+    }
+
+    /**
+     * Get customers by status with pagination
+     */
+    public Page<UserDto> getCustomersByStatusPaginated(UserStatus status, Pageable pageable) {
+        Page<User> customerPage = userRepository.findByRoleAndStatus(UserRole.CUSTOMER, status, pageable);
+        return customerPage.map(UserDto::new);
     }
 
     /**
@@ -50,8 +68,10 @@ public class EmployeeService {
 
     /**
      * Approves a customer and creates their accounts.
+     * @return The approved customer DTO
      */
-    public void approveCustomer(Long customerId) {
+    @Transactional
+    public UserDto approveCustomer(Long customerId) {
         User user = userRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + customerId));
 
@@ -59,17 +79,25 @@ public class EmployeeService {
             throw new IllegalStateException("User is already approved.");
         }
 
+        if (user.getRole() != UserRole.CUSTOMER) {
+            throw new IllegalStateException("Only customers can be approved.");
+        }
+
         user.setStatus(UserStatus.APPROVED);
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
 
         // Create IBAN accounts
-        accountService.createAccountsForUser(user);
+        accountService.createAccountsForUser(savedUser);
+        
+        return new UserDto(savedUser);
     }
 
     /**
      * Rejects a customer.
+     * @return The rejected customer DTO
      */
-    public void rejectCustomer(Long customerId) {
+    @Transactional
+    public UserDto rejectCustomer(Long customerId) {
         User user = userRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + customerId));
 
@@ -77,7 +105,13 @@ public class EmployeeService {
             throw new IllegalStateException("User is already rejected.");
         }
 
+        if (user.getRole() != UserRole.CUSTOMER) {
+            throw new IllegalStateException("Only customers can be rejected.");
+        }
+
         user.setStatus(UserStatus.REJECTED);
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        
+        return new UserDto(savedUser);
     }
 }

@@ -2,7 +2,6 @@ package com.nextgenbank.backend.controller;
 
 import com.nextgenbank.backend.model.dto.AccountLookupDto;
 import com.nextgenbank.backend.service.AccountService;
-import jakarta.validation.constraints.Min;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;

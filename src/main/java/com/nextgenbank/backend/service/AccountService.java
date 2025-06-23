@@ -38,7 +38,6 @@ public class AccountService {
     @PersistenceContext
     private EntityManager entityManager;
 
-
     /**
      * Get all accounts for a customer
      */
@@ -195,5 +194,4 @@ public class AccountService {
     public List<Account> getAccountsForUser(User user) {
         return accountRepository.findByCustomer(user);
     }
-
 }

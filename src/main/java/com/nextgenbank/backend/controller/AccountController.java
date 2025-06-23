@@ -2,15 +2,11 @@ package com.nextgenbank.backend.controller;
 
 import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.User;
-import com.nextgenbank.backend.model.dto.AccountDto;
 import com.nextgenbank.backend.model.dto.ApprovalRequestDto;
-import com.nextgenbank.backend.repository.AccountRepository;
-import com.nextgenbank.backend.repository.UserRepository;
 
 import com.nextgenbank.backend.service.AccountService;
 import com.nextgenbank.backend.service.UserService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,7 +15,6 @@ import java.util.HashMap;
 import java.util.stream.Collectors;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-
 
 @RestController
 @RequestMapping("/api/accounts")
@@ -32,7 +27,6 @@ public class AccountController {
         this.userService = userService;
         this.accountService = accountService;
     }
-
 
     @GetMapping("/my")
     public ResponseEntity<?> getMyAccounts(@AuthenticationPrincipal UserDetails userDetails) {

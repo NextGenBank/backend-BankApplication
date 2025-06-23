@@ -1,15 +1,12 @@
 package com.nextgenbank.backend.controller;
 
 import com.nextgenbank.backend.model.User;
-import com.nextgenbank.backend.model.dto.RegisterRequestDto;
 import com.nextgenbank.backend.model.dto.UserDto;
 import com.nextgenbank.backend.security.JwtProvider;
 import com.nextgenbank.backend.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/user")
@@ -29,5 +26,4 @@ public class UserController {
         User user = userService.getByEmailOrThrow(email);
         return ResponseEntity.ok(new UserDto(user));
     }
-
 }

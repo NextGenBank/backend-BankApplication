@@ -104,5 +104,4 @@ public class Account {
     public void setCreatedBy(User createdBy) {
         this.createdBy = createdBy;
     }
-
 }

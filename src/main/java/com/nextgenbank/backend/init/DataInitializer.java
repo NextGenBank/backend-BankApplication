@@ -208,7 +208,7 @@ public class DataInitializer implements CommandLineRunner {
         transactionRepository.save(txn3);
         transactionRepository.save(txn4);
 
-// Dana (only incoming transactions)
+        // Dana (only incoming transactions)
         User dana = new User();
         dana.setFirstName("Dana");
         dana.setLastName("White");
@@ -221,7 +221,7 @@ public class DataInitializer implements CommandLineRunner {
         dana.setCreatedAt(LocalDateTime.now());
         userRepository.save(dana);
 
-// Dana's checking account
+        // Dana's checking account
         Account danaAccount = new Account();
         danaAccount.setIBAN("NL44556677889900112233");
         danaAccount.setCustomer(dana);
@@ -233,7 +233,7 @@ public class DataInitializer implements CommandLineRunner {
         danaAccount.setCreatedBy(bob);
         accountRepository.save(danaAccount);
 
-// One incoming transaction for Dana
+        // One incoming transaction for Dana
         Transaction txnDana = new Transaction();
         txnDana.setFromAccount(aliceChecking);
         txnDana.setToAccount(danaAccount);

@@ -1,6 +1,5 @@
 package com.nextgenbank.backend.service;
 
-import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.UserRole;
 import com.nextgenbank.backend.model.User;
 import com.nextgenbank.backend.model.UserStatus;

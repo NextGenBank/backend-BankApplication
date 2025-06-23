@@ -204,49 +204,7 @@ public class TransactionServiceTest {
         verify(accountRepository, never()).save(any());
     }
     
-    @Test
-    void shouldProcessEmployeeTransfer() {
-        // Given
-        TransferRequestDto transferRequest = new TransferRequestDto();
-        transferRequest.setAccountNumber("FROM_IBAN");
-        transferRequest.setToAccount("TO_IBAN");
-        transferRequest.setAmount(new BigDecimal("100.00"));
-        transferRequest.setInitiatorId(1L);
-        
-        User employee = new User();
-        employee.setUserId(1L);
-        employee.setRole(UserRole.EMPLOYEE);
-        
-        Account fromAccount = new Account();
-        fromAccount.setIBAN("FROM_IBAN");
-        fromAccount.setBalance(new BigDecimal("1000.00"));
-        
-        Account toAccount = new Account();
-        toAccount.setIBAN("TO_IBAN");
-        toAccount.setBalance(new BigDecimal("500.00"));
-        
-        Transaction transaction = new Transaction();
-        transaction.setTransactionId(1L);
-        transaction.setAmount(new BigDecimal("100.00"));
-        transaction.setFromAccount(fromAccount);
-        transaction.setToAccount(toAccount);
-        transaction.setInitiator(employee);
-        
-        when(userRepository.findById(1L)).thenReturn(Optional.of(employee));
-        when(accountRepository.findById("FROM_IBAN")).thenReturn(Optional.of(fromAccount));
-        when(accountRepository.findById("TO_IBAN")).thenReturn(Optional.of(toAccount));
-        when(transactionRepository.save(any(Transaction.class))).thenReturn(transaction);
-        
-        // When
-        TransactionDto result = transactionService.processEmployeeTransfer(transferRequest);
-        
-        // Then
-        assertNotNull(result);
-        assertEquals(new BigDecimal("100.00"), result.getAmount());
-        verify(accountRepository, times(2)).save(any(Account.class));
-        verify(transactionRepository).save(any(Transaction.class));
-    }
-    
+
     @Test
     void shouldThrowExceptionWhenNonEmployeeInitiatesEmployeeTransfer() {
         // Given

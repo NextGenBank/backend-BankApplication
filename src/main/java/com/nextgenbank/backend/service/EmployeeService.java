@@ -78,12 +78,8 @@ public class EmployeeService {
             throw new IllegalStateException("User is already approved.");
         }
 
-        if (user.getRole() != UserRole.CUSTOMER) {
-            throw new IllegalStateException("Only customers can be approved.");
-        }
-
         user.setStatus(UserStatus.APPROVED);
-        User savedUser = userRepository.save(user);
+        userRepository.save(user);
 
         // Create IBAN accounts
         accountService.createAccountsForUser(user, employee);
@@ -91,10 +87,8 @@ public class EmployeeService {
 
     /**
      * Rejects a customer.
-     * @return The rejected customer DTO
      */
-    @Transactional
-    public UserDto rejectCustomer(Long customerId) {
+    public void rejectCustomer(Long customerId) {
         User user = userRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + customerId));
 
@@ -102,13 +96,7 @@ public class EmployeeService {
             throw new IllegalStateException("User is already rejected.");
         }
 
-        if (user.getRole() != UserRole.CUSTOMER) {
-            throw new IllegalStateException("Only customers can be rejected.");
-        }
-
         user.setStatus(UserStatus.REJECTED);
-        User savedUser = userRepository.save(user);
-        
-        return new UserDto(savedUser);
+        userRepository.save(user);
     }
 }

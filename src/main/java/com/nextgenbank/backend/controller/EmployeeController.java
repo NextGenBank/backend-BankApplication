@@ -129,21 +129,21 @@ public class EmployeeController {
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
-            throw new RuntimeException("Error fetching customers by status: " + e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Unexpected error while approving customer."));
         }
     }
 
-
-    /**
-     * Reject a customer account
-     */
     @PutMapping("/reject/{customerId}")
-    public ResponseEntity<UserDto> rejectCustomer(@PathVariable Long customerId) {
+    public ResponseEntity<?> rejectCustomer(@PathVariable Long customerId) {
         try {
-            UserDto rejectedCustomer = employeeService.rejectCustomer(customerId);
-            return ResponseEntity.ok(rejectedCustomer);
+            employeeService.rejectCustomer(customerId);
+            return ResponseEntity.ok(Map.of("message", "Customer rejected successfully"));
         } catch (RuntimeException e) {
-            throw new RuntimeException("Error rejecting customer: " + e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Unexpected error while rejecting customer."));
         }
     }
 }

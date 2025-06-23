@@ -150,7 +150,7 @@ class AccountServiceTest {
         when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
         
         // When
-        accountService.createAccountsForUser(customer);
+        accountService.createAccountsForUser(customer,employee);
         
         // Then
         // Verify that save was called twice (for checking and savings accounts)

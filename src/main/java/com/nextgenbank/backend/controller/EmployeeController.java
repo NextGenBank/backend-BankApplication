@@ -133,18 +133,6 @@ public class EmployeeController {
         }
     }
 
-    /**
-     * Approve a customer account
-     */
-    @PutMapping("/approve/{customerId}")
-    public ResponseEntity<UserDto> approveCustomer(@PathVariable Long customerId) {
-        try {
-            UserDto approvedCustomer = employeeService.approveCustomer(customerId);
-            return ResponseEntity.ok(approvedCustomer);
-        } catch (RuntimeException e) {
-            throw new RuntimeException("Error approving customer: " + e.getMessage(), e);
-        }
-    }
 
     /**
      * Reject a customer account

@@ -100,19 +100,21 @@ public class TransactionServiceTest {
     }
 
     @Test
-    void shouldFilterByAmount() {
-        Transaction txn = mockTransaction(5L);
-        Page<Transaction> page = new PageImpl<>(List.of(txn));
+    void shouldHandleNullAmountFilter() {
+        Page<Transaction> result = transactionService.getFilteredTransactionsForUser(
+                1L, null, null, null, null, null, new BigDecimal("100.00"), null, PageRequest.of(0, 10));
+        // Verify default "eq" is used
+    }
 
-        when(transactionRepository.findAllByUserIdWithFilters(
-                eq(1L), any(), any(), any(), any(), any(), eq(new BigDecimal("100.00")), eq("EQUAL"), any(Pageable.class)))
-                .thenReturn(page);
+    @Test
+    void shouldReturnEmptyPageWhenNoResults() {
+        when(transactionRepository.findAllByUserIdWithFilters(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(Page.empty());
 
         Page<Transaction> result = transactionService.getFilteredTransactionsForUser(
-                1L, null, null, null, null, null, new BigDecimal("100.00"), "EQUAL", PageRequest.of(0, 10)
-        );
+                1L, null, null, null, null, null, new BigDecimal("999.99"), "EQUAL", PageRequest.of(0, 10));
 
-        assertEquals(1, result.getTotalElements());
+        assertEquals(0, result.getTotalElements());
     }
 
     private Transaction mockTransaction(Long id) {

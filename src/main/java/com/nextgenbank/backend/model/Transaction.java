@@ -19,6 +19,7 @@ public class Transaction {
     @JoinColumn(name = "to_account")
     private Account toAccount;
 
+    @Column(nullable = false, columnDefinition = "DECIMAL(15,2)")
     private BigDecimal amount;
 
     @Column(columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")

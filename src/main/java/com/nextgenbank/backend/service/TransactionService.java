@@ -11,8 +11,10 @@ import com.nextgenbank.backend.repository.TransactionRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -49,11 +51,73 @@ public class TransactionService {
             String endDate,
             BigDecimal amount,
             String amountFilter,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
+
+        validateDirectionParameter(direction);
+        String normalizedAmountFilter = normalizeAmountFilter(amount, amountFilter);
+        LocalDate parsedStartDate = safeParseDate(startDate);
+        LocalDate parsedEndDate = safeParseDate(endDate);
+        BigDecimal normalizedAmount = normalizeAmount(amount);
+
+        if (parsedStartDate == null && parsedEndDate == null && startDate != null || endDate != null) {
+            return Page.empty(pageable);
+        }
+
         return transactionRepository.findAllByUserIdWithFilters(
-                userId, iban, name, direction, startDate, endDate, amount, amountFilter, pageable
+                userId,
+                iban,
+                name,
+                direction,
+                parsedStartDate,
+                parsedEndDate,
+                normalizedAmount,
+                normalizedAmountFilter,
+                pageable
         );
+    }
+
+    private void validateDirectionParameter(String direction) {
+        if (direction != null && !direction.isEmpty() && !isValidTransactionDirection(direction)) {
+            throw new IllegalArgumentException("Invalid transaction direction: " + direction);
+        }
+    }
+
+    private String normalizeAmountFilter(BigDecimal amount, String amountFilter) {
+        if (amount == null) {
+            return null;
+        }
+
+        AmountFilterOperation operation = AmountFilterOperation.fromString(amountFilter);
+        return operation != null ? operation.getDbValue() : "eq";
+    }
+
+    private LocalDate safeParseDate(String dateString) {
+        if (dateString == null) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(dateString);
+        } catch (DateTimeParseException e) {
+            logger.warn("Failed to parse date: {}", dateString);
+            return null;
+        }
+    }
+
+    private BigDecimal normalizeAmount(BigDecimal amount) {
+        return amount != null ? amount.stripTrailingZeros() : null;
+    }
+
+    private boolean isValidTransactionDirection(String direction) {
+        try {
+            TransactionDirection.valueOf(direction.toUpperCase());
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private LocalDate parseDate(String dateStr) {
+        return dateStr != null ? LocalDate.parse(dateStr) : null;
     }
 
     public List<TransactionDto> getAllTransactions() {

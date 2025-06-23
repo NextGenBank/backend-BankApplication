@@ -6,39 +6,13 @@ import com.nextgenbank.backend.model.dto.TransactionResponseDto;
 public class TransactionMapper {
 
     public static TransactionResponseDto toResponseDto(Transaction txn, Long userId) {
-        String fromIban = txn.getFromAccount() != null ? txn.getFromAccount().getIBAN() : "N/A";
-        String toIban = txn.getToAccount() != null ? txn.getToAccount().getIBAN() : "N/A";
+        String fromIban = getIban(txn.getFromAccount());
+        String toIban = getIban(txn.getToAccount());
 
-        String fromName = "Bank";
-        if (txn.getFromAccount() != null && txn.getFromAccount().getCustomer() != null) {
-            fromName = txn.getFromAccount().getCustomer().getFirstName() + " " +
-                    txn.getFromAccount().getCustomer().getLastName();
-        }
+        String fromName = getFullNameOrDefault(txn, true, "Bank");
+        String toName = getFullNameOrDefault(txn, false, "Unknown");
 
-        String toName = "Unknown";
-        if (txn.getToAccount() != null && txn.getToAccount().getCustomer() != null) {
-            toName = txn.getToAccount().getCustomer().getFirstName() + " " +
-                    txn.getToAccount().getCustomer().getLastName();
-        }
-
-        String direction = "UNKNOWN";
-
-        Long fromUserId = (txn.getFromAccount() != null && txn.getFromAccount().getCustomer() != null)
-                ? txn.getFromAccount().getCustomer().getUserId()
-                : null;
-        Long toUserId = (txn.getToAccount() != null && txn.getToAccount().getCustomer() != null)
-                ? txn.getToAccount().getCustomer().getUserId()
-                : null;
-
-        if (fromUserId != null && fromUserId.equals(userId)) {
-            direction = "OUTGOING";
-        } else if (toUserId != null && toUserId.equals(userId)) {
-            direction = "INCOMING";
-        }
-
-        if (fromUserId != null && toUserId != null && fromUserId.equals(userId) && toUserId.equals(userId)) {
-            direction = "INTERNAL";
-        }
+        String direction = determineDirection(txn, userId);
 
         return new TransactionResponseDto(
                 txn.getTransactionId(),
@@ -51,5 +25,38 @@ public class TransactionMapper {
                 toName,
                 direction
         );
+    }
+
+    private static String getIban(com.nextgenbank.backend.model.Account account) {
+        return (account != null) ? account.getIBAN() : "N/A";
+    }
+
+    private static String getFullNameOrDefault(Transaction txn, boolean isFrom, String defaultName) {
+        var account = isFrom ? txn.getFromAccount() : txn.getToAccount();
+        if (account != null && account.getCustomer() != null) {
+            return account.getCustomer().getFirstName() + " " + account.getCustomer().getLastName();
+        }
+        return defaultName;
+    }
+
+    private static String determineDirection(Transaction txn, Long userId) {
+        Long fromUserId = getUserId(txn.getFromAccount());
+        Long toUserId = getUserId(txn.getToAccount());
+
+        if (fromUserId != null && toUserId != null && fromUserId.equals(userId) && toUserId.equals(userId)) {
+            return "INTERNAL";
+        } else if (fromUserId != null && fromUserId.equals(userId)) {
+            return "OUTGOING";
+        } else if (toUserId != null && toUserId.equals(userId)) {
+            return "INCOMING";
+        } else {
+            return "UNKNOWN";
+        }
+    }
+
+    private static Long getUserId(com.nextgenbank.backend.model.Account account) {
+        return (account != null && account.getCustomer() != null)
+                ? account.getCustomer().getUserId()
+                : null;
     }
 }

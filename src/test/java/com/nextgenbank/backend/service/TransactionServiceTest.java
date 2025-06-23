@@ -1,6 +1,8 @@
 package com.nextgenbank.backend.service;
 
 import com.nextgenbank.backend.model.*;
+import com.nextgenbank.backend.model.dto.SwitchFundsRequestDto;
+import com.nextgenbank.backend.model.dto.SwitchFundsResponseDto;
 import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.TransactionRepository;
 import com.nextgenbank.backend.repository.UserRepository;
@@ -12,6 +14,7 @@ import org.springframework.data.domain.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -131,5 +134,36 @@ public class TransactionServiceTest {
         t.setTransactionType(TransactionType.TRANSFER);
 
         return t;
+    }
+
+    @Test
+    void shouldSwitchFundsBetweenAccounts() {
+        User user = new User();
+        user.setUserId(1L);
+        user.setRole(UserRole.CUSTOMER);
+
+        Account checking = new Account();
+        checking.setIBAN("CHECKING123");
+        checking.setBalance(new BigDecimal("1000"));
+        checking.setAccountType(AccountType.CHECKING);
+        checking.setCustomer(user);
+
+        Account savings = new Account();
+        savings.setIBAN("SAVINGS123");
+        savings.setBalance(new BigDecimal("500"));
+        savings.setAccountType(AccountType.SAVINGS);
+        savings.setCustomer(user);
+
+        when(accountRepository.findByCustomerUserIdAndAccountType(1L, AccountType.CHECKING))
+                .thenReturn(Optional.of(checking));
+
+        when(accountRepository.findByCustomerUserIdAndAccountType(1L, AccountType.SAVINGS))
+                .thenReturn(Optional.of(savings));
+
+        SwitchFundsRequestDto request = new SwitchFundsRequestDto("CHECKING", new BigDecimal("200"));
+        SwitchFundsResponseDto response = transactionService.switchFunds(user, request);
+
+        assertEquals(new BigDecimal("800"), response.getCheckingBalance());
+        assertEquals(new BigDecimal("700"), response.getSavingsBalance());
     }
 }

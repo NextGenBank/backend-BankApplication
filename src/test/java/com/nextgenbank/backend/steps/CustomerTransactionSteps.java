@@ -1,6 +1,6 @@
 package com.nextgenbank.backend.steps;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nextgenbank.backend.model.dto.TransactionResponseDto;
 import io.cucumber.java.en.Given;
@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,18 +26,26 @@ public class CustomerTransactionSteps {
     private ResponseEntity<String> latestResponse;
     private String authToken;
 
+    private List<TransactionResponseDto> extractTransactionContent() throws Exception {
+        //the latest response return the raw JSON response from the backend as a string, then with this obj mapper i parse this string into a tree-like JSON structure
+        JsonNode json = objectMapper.readTree(latestResponse.getBody());
+        JsonNode contentNode = json.get("content");
+        //I'm telling to read this contentNode as a List of TransactionResponseDto objects, so it maps every JSON object in the content array to a TransactionResponseDto
+        return objectMapper.readerForListOf(TransactionResponseDto.class).readValue(contentNode);
+    }
+
     @Given("a registered customer with email {string} and password {string}")
     public void a_registered_customer_with_email_and_password(String email, String password) {
-        // Assume user already created in DataInitializer or test setup
+        // Assume user already exists
     }
 
     @Given("the customer logs in with email {string} and password {string}")
     public void the_customer_logs_in_with_email_and_password(String email, String password) {
-        String loginUrl = "/auth/login";
-        String loginRequest = String.format("{\"email\":\"%s\", \"password\":\"%s\"}", email, password);
+        String loginUrl = "/auth/login"; //api endpoint
+        String loginRequest = String.format("{\"email\":\"%s\", \"password\":\"%s\"}", email, password); //builds a json string
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setContentType(MediaType.APPLICATION_JSON); //Content-Type: application/json
         HttpEntity<String> requestEntity = new HttpEntity<>(loginRequest, headers);
 
         latestResponse = restTemplate.postForEntity(loginUrl, requestEntity, String.class);
@@ -61,80 +70,63 @@ public class CustomerTransactionSteps {
 
     @Then("the response should contain at least {int} transaction")
     public void the_response_should_contain_at_least_transaction(Integer count) {
-        assertNotNull(latestResponse, "No response received");
-        assertEquals(HttpStatus.OK, latestResponse.getStatusCode(), "Expected 200 OK");
+        assertNotNull(latestResponse);
+        assertEquals(HttpStatus.OK, latestResponse.getStatusCode());
 
         try {
-            List<TransactionResponseDto> transactions = objectMapper.readValue(
-                    latestResponse.getBody(),
-                    new TypeReference<>() {}
-            );
-            assertNotNull(transactions);
+            List<TransactionResponseDto> transactions = extractTransactionContent();
             assertTrue(transactions.size() >= count, "Expected at least " + count + " transactions");
         } catch (Exception e) {
-            fail("Failed to parse transactions from response: " + e.getMessage());
+            fail("Failed to parse paginated transactions: " + e.getMessage());
         }
     }
 
     @Then("the response should contain {int} transactions")
     public void the_response_should_contain_transactions(Integer expectedCount) {
-        assertNotNull(latestResponse, "No response received");
+        assertNotNull(latestResponse);
         assertEquals(HttpStatus.OK, latestResponse.getStatusCode());
 
         try {
-            List<TransactionResponseDto> transactions = objectMapper.readValue(
-                    latestResponse.getBody(),
-                    new TypeReference<>() {}
-            );
-            assertEquals(expectedCount, transactions.size(), "Unexpected number of transactions");
+            List<TransactionResponseDto> transactions = extractTransactionContent();
+            assertEquals(expectedCount, transactions.size());
         } catch (Exception e) {
-            fail("Failed to parse transactions: " + e.getMessage());
+            fail("Failed to parse paginated transactions: " + e.getMessage());
         }
     }
 
     @When("the customer tries to request transactions without a token")
     public void the_customer_tries_to_request_transactions_without_a_token() {
-        HttpHeaders headers = new HttpHeaders(); // No Authorization header
+        HttpHeaders headers = new HttpHeaders();
         HttpEntity<Void> entity = new HttpEntity<>(headers);
-
         latestResponse = restTemplate.exchange("/api/transactions", HttpMethod.GET, entity, String.class);
     }
 
     @Then("the response should be unauthorized")
     public void the_response_should_be_unauthorized() {
-        assertNotNull(latestResponse, "No response received");
-        assertEquals(HttpStatus.UNAUTHORIZED, latestResponse.getStatusCode(), "Expected 401 UNAUTHORIZED");
+        assertNotNull(latestResponse);
+        assertEquals(HttpStatus.UNAUTHORIZED, latestResponse.getStatusCode()); //401 unauthorized
     }
 
     @Then("the response should contain only transactions belonging to {string}")
     public void the_response_should_contain_only_transactions_belonging_to(String expectedName) {
-        assertNotNull(latestResponse, "No response received");
-        assertEquals(HttpStatus.OK, latestResponse.getStatusCode(), "Expected 200 OK");
+        assertNotNull(latestResponse);
+        assertEquals(HttpStatus.OK, latestResponse.getStatusCode());
 
         try {
-            List<TransactionResponseDto> transactions = objectMapper.readValue(
-                    latestResponse.getBody(),
-                    new TypeReference<>() {}
-            );
+            List<TransactionResponseDto> transactions = extractTransactionContent();
 
             for (TransactionResponseDto txn : transactions) {
                 switch (txn.direction().toUpperCase()) {
-                    case "OUTGOING" -> assertEquals(expectedName, txn.fromName(), "Sender name mismatch");
-                    case "INCOMING" -> assertEquals(expectedName, txn.toName(), "Receiver name mismatch");
-                    case "INTERNAL" -> assertTrue(
-                            expectedName.equals(txn.fromName()) || expectedName.equals(txn.toName()),
-                            "Expected name not found in internal transaction"
-                    );
+                    case "OUTGOING" -> assertEquals(expectedName, txn.fromName());
+                    case "INCOMING" -> assertEquals(expectedName, txn.toName());
+                    case "INTERNAL" -> assertTrue(expectedName.equals(txn.fromName()) || expectedName.equals(txn.toName()));
                     default -> fail("Unexpected transaction direction: " + txn.direction());
                 }
             }
-
         } catch (Exception e) {
             fail("Failed to parse transactions: " + e.getMessage());
         }
     }
-
-    // filter transactions
 
     @When("the customer filters transactions by IBAN {string}")
     public void the_customer_filters_transactions_by_iban(String iban) {
@@ -152,10 +144,7 @@ public class CustomerTransactionSteps {
         assertEquals(HttpStatus.OK, latestResponse.getStatusCode());
 
         try {
-            List<TransactionResponseDto> transactions = objectMapper.readValue(
-                    latestResponse.getBody(),
-                    new TypeReference<>() {}
-            );
+            List<TransactionResponseDto> transactions = extractTransactionContent();
 
             for (TransactionResponseDto txn : transactions) {
                 assertTrue(txn.fromIban().equals(iban) || txn.toIban().equals(iban),
@@ -182,10 +171,7 @@ public class CustomerTransactionSteps {
         assertEquals(HttpStatus.OK, latestResponse.getStatusCode());
 
         try {
-            List<TransactionResponseDto> transactions = objectMapper.readValue(
-                    latestResponse.getBody(),
-                    new TypeReference<>() {}
-            );
+            List<TransactionResponseDto> transactions = extractTransactionContent();
 
             for (TransactionResponseDto txn : transactions) {
                 boolean fromMatch = txn.fromName().toLowerCase().contains(name.toLowerCase());
@@ -213,18 +199,13 @@ public class CustomerTransactionSteps {
         assertEquals(HttpStatus.OK, latestResponse.getStatusCode());
 
         try {
-            List<TransactionResponseDto> transactions = objectMapper.readValue(
-                    latestResponse.getBody(),
-                    new TypeReference<>() {}
-            );
+            List<TransactionResponseDto> transactions = extractTransactionContent();
 
             for (TransactionResponseDto txn : transactions) {
-                assertEquals(type.toUpperCase(), txn.direction().toUpperCase(),
-                        "Transaction type mismatch. Expected: " + type + ", Found: " + txn.direction());
+                assertEquals(type.toUpperCase(), txn.direction().toUpperCase());
             }
         } catch (Exception e) {
             fail("Failed to parse transactions: " + e.getMessage());
         }
     }
-
 }

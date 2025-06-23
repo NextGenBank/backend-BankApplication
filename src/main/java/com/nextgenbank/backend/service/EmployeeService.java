@@ -51,7 +51,7 @@ public class EmployeeService {
     /**
      * Approves a customer and creates their accounts.
      */
-    public void approveCustomer(Long customerId) {
+    public void approveCustomer(Long customerId, User employee) {
         User user = userRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + customerId));
 
@@ -63,7 +63,7 @@ public class EmployeeService {
         userRepository.save(user);
 
         // Create IBAN accounts
-        accountService.createAccountsForUser(user);
+        accountService.createAccountsForUser(user, employee);
     }
 
     /**

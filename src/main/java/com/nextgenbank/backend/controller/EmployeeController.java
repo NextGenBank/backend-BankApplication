@@ -9,9 +9,11 @@ import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.UserRepository;
 import com.nextgenbank.backend.service.EmployeeService;
 import com.nextgenbank.backend.service.TransactionService;
+import com.nextgenbank.backend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -26,12 +28,14 @@ public class EmployeeController {
     private final UserRepository userRepository;
     private final EmployeeService employeeService;
     private final TransactionService transactionService;
+    private final UserService userService;
 
     public EmployeeController(AccountRepository accountRepository,
-                              UserRepository userRepository, EmployeeService employeeService, TransactionService transactionService) {
+                              UserRepository userRepository, EmployeeService employeeService, TransactionService transactionService, UserService userService) {
         this.userRepository   = userRepository;
         this.employeeService = employeeService;
         this.transactionService = transactionService;
+        this.userService = userService;
     }
 
     /**
@@ -78,9 +82,16 @@ public class EmployeeController {
     }
 
     @PutMapping("/approve/{customerId}")
-    public ResponseEntity<?> approveCustomer(@PathVariable Long customerId) {
+    public ResponseEntity<?> approveCustomer(
+            @PathVariable Long customerId,
+            Authentication authentication
+    ) {
         try {
-            employeeService.approveCustomer(customerId);
+            String email = authentication.getName();
+            User employee = userService.getByEmailOrThrow(email);
+
+            employeeService.approveCustomer(customerId, employee);
+
             return ResponseEntity.ok(Map.of("message", "Customer approved successfully"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));

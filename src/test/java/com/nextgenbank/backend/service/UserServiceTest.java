@@ -36,6 +36,7 @@ public class UserServiceTest {
     // Test for registering a user successfully
     @Test
     void registerUser_withValidInput_shouldSaveUser() {
+        //fake registration request
         RegisterRequestDto request = new RegisterRequestDto();
         request.setFirstName("Alice");
         request.setLastName("Smith");
@@ -44,13 +45,25 @@ public class UserServiceTest {
         request.setBsn("123456789");
         request.setPhone("0612345678");
 
-        when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.empty());
+        //simulate that email, bsn, and phone numbera re not yet in the db
+        when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.empty()); //the database lookup found nothing
+        when(userRepository.findByBsnNumber("123456789")).thenReturn(Optional.empty());
+        when(userRepository.findByPhoneNumber("0612345678")).thenReturn(Optional.empty());
+        //simulate password encoding
         when(passwordEncoder.encode("password123")).thenReturn("encodedPassword");
 
+        // simulate saving the user returns a user with ID (to prevent NullPointerException)
+        User mockSavedUser = new User();
+        mockSavedUser.setUserId(1L); // so that savedUser.getUserId() in the service doesn't throw an error
+        when(userRepository.save(any(User.class))).thenReturn(mockSavedUser);
+
+        //call the actual method im using
         userService.registerUser(request);
 
+        //verify that save() was called once
         verify(userRepository, times(1)).save(any(User.class));
     }
+
 
     // Test for duplicate email
     @Test
@@ -60,7 +73,7 @@ public class UserServiceTest {
 
         when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.of(new User()));
 
-        assertThrows(IllegalArgumentException.class, () -> userService.registerUser(request));
+        assertThrows(IllegalArgumentException.class, () -> userService.registerUser(request)); //() means the function takes no parameters
     }
 
     // Test for valid login

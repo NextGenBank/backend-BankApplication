@@ -14,6 +14,8 @@ public class UserDto {
     private UserRole role;
     private UserStatus status;
 
+    public UserDto() {}
+
     public UserDto(User user) {
         this.userId = user.getUserId();
         this.firstName = user.getFirstName();

@@ -1,10 +1,14 @@
 package com.nextgenbank.backend.steps;
 
+import com.nextgenbank.backend.model.dto.LoginResponseDto;
 import io.cucumber.java.en.*;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.*;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nextgenbank.backend.model.dto.LoginResponseDto;
+
 
 public class UserSteps {
 
@@ -28,24 +32,30 @@ public class UserSteps {
           "email": "%s",
           "password": "%s"
         }
-        """, email, password);
+    """, email, password);
 
+        // this part combines headers and body into one object to send as the HTTP request
         HttpEntity<String> request = new HttpEntity<>(body, headers);
-        response = restTemplate.postForEntity("/auth/login", request, String.class);
+
+        // request raw JSON as String
+        ResponseEntity<String> loginResponse = restTemplate.postForEntity("/auth/login", request, String.class); //store the full response, including body and status code, and treat the body as a string
+        this.response = loginResponse;
 
         assertEquals(200, response.getStatusCodeValue());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("token")); //checks that the response body contains the word token
 
-        String responseBody = response.getBody();
-        int start = responseBody.indexOf(":\"") + 2;
-        int end = responseBody.indexOf("\",");
-        jwtToken = responseBody.substring(start, end);
+        // extract token from JSON string
+        this.jwtToken = extractTokenFromJson(response.getBody());
     }
+
 
     @Given("I attempt to log in with email {string} and password {string}")
     public void i_attempt_login(String email, String password) {
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setContentType(MediaType.APPLICATION_JSON); // Content-Type: application/json (I'm telling the backend I'm sending JSON data
 
+        //i create the json request body
         String body = String.format("""
         {
           "email": "%s",
@@ -53,6 +63,7 @@ public class UserSteps {
         }
         """, email, password);
 
+        //i wrap body and headers into an HttpEntity
         HttpEntity<String> request = new HttpEntity<>(body, headers);
         response = restTemplate.postForEntity("/auth/login", request, String.class);
     }
@@ -67,13 +78,16 @@ public class UserSteps {
 //    }
 @When("I GET {string}")
 public void i_get(String endpoint) {
+        //i create a new header obj to hold things like the JWT authorization token
     HttpHeaders headers = new HttpHeaders();
 
     if (jwtToken != null && !jwtToken.isBlank()) {
         headers.setBearerAuth(jwtToken); // Only send Authorization if logged in
     }
 
+    //i am sending a GET request, so no request body is needed
     HttpEntity<Void> request = new HttpEntity<>(headers);
+    //this line does the actual HTTP GET request
     response = restTemplate.exchange(endpoint, HttpMethod.GET, request, String.class);
 }
 
@@ -103,12 +117,13 @@ public void i_get(String endpoint) {
         """, firstName, lastName, email, password, bsn, phone);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setContentType(MediaType.APPLICATION_JSON); //I’m sending JSON data
 
-        HttpEntity<String> request = new HttpEntity<>(json, headers);
-        response = restTemplate.postForEntity("/auth/register", request, String.class);
+        HttpEntity<String> request = new HttpEntity<>(json, headers); //combines the JSON body + headers into a full HTTP request
+        response = restTemplate.postForEntity("/auth/register", request, String.class); //sends the request to the /auth/register endpoint and saves the full response (status + body)
     }
 
+    //private helpers
     private String convertEmpty(String value) {
         if (value == null || value.equalsIgnoreCase("[empty]")) {
             return "";
@@ -116,6 +131,21 @@ public void i_get(String endpoint) {
         return value.trim();
     }
 
+    private String extractTokenFromJson(String json) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper(); //creates a json parser
+            LoginResponseDto responseDto = objectMapper.readValue(json, LoginResponseDto.class); //convert the raw JSON string into a Java object
+            return responseDto.getToken(); //now that the json is a proper object, I get the token
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to extract token from JSON", e);
+        }
+    }
+
+//    private String extractTokenFromJson(String json) {
+//        int start = json.indexOf("\"token\":\"") + 9;
+//        int end = json.indexOf("\"", start);
+//        return json.substring(start, end);
+//    }
 
     // Response Check
 
@@ -142,25 +172,26 @@ public void i_get(String endpoint) {
     @Then("the response should contain {string}")
     public void the_response_should_contain(String expectedContent) {
         assertNotNull(response.getBody());
+        //converts both the expected string and the body to lowercase to make a case-insensitive check
         assertTrue(response.getBody().toLowerCase().contains(expectedContent.toLowerCase()),
                 "Response should contain (case-insensitive): " + expectedContent + "\n\nActual response:\n" + response.getBody());
     }
-
-    @Then("the response should contain a transaction with type {string}")
-    public void the_response_should_contain_transaction_type(String type) {
-        assertNotNull(response.getBody());
-        assertTrue(response.getBody().contains("\"transactionType\":\"" + type + "\""),
-                "Expected transaction type: " + type + "\nActual response:\n" + response.getBody());
-    }
-
-    @Then("the response should include both {string} and {string}")
-    public void the_response_should_include_both(String field1, String field2) {
-        assertNotNull(response.getBody());
-        assertTrue(response.getBody().contains(field1),
-                "Expected field: " + field1 + " not found.\nResponse:\n" + response.getBody());
-        assertTrue(response.getBody().contains(field2),
-                "Expected field: " + field2 + " not found.\nResponse:\n" + response.getBody());
-    }
+//
+//    @Then("the response should contain a transaction with type {string}")
+//    public void the_response_should_contain_transaction_type(String type) {
+//        assertNotNull(response.getBody());
+//        assertTrue(response.getBody().contains("\"transactionType\":\"" + type + "\""),
+//                "Expected transaction type: " + type + "\nActual response:\n" + response.getBody());
+//    }
+//
+//    @Then("the response should include both {string} and {string}")
+//    public void the_response_should_include_both(String field1, String field2) {
+//        assertNotNull(response.getBody());
+//        assertTrue(response.getBody().contains(field1),
+//                "Expected field: " + field1 + " not found.\nResponse:\n" + response.getBody());
+//        assertTrue(response.getBody().contains(field2),
+//                "Expected field: " + field2 + " not found.\nResponse:\n" + response.getBody());
+//    }
 
 
 }

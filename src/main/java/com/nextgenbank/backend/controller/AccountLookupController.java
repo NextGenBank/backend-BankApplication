@@ -1,92 +1,43 @@
 package com.nextgenbank.backend.controller;
 
-import com.nextgenbank.backend.model.User;
-import com.nextgenbank.backend.model.UserStatus;
-import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.dto.AccountLookupDto;
-import com.nextgenbank.backend.repository.UserRepository;
-import com.nextgenbank.backend.repository.AccountRepository;
+import com.nextgenbank.backend.service.AccountService;
+import jakarta.validation.constraints.Min;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.annotation.Secured;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import com.nextgenbank.backend.model.UserRole;
-
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/accounts")
 public class AccountLookupController {
 
-    private final UserRepository userRepository;
-    private final AccountRepository accountRepository;
+    private final AccountService accountService;
 
-    public AccountLookupController(UserRepository userRepository, AccountRepository accountRepository) {
-        this.userRepository = userRepository;
-        this.accountRepository = accountRepository;
+    @Autowired
+    public AccountLookupController(AccountService accountService) {
+        this.accountService = accountService;
     }
 
     @GetMapping("/lookup")
-    public ResponseEntity<?> lookupIBAN(
-            @RequestParam String firstName, //GET /api/accounts/lookup?firstName=Alice&lastName=Smith
-            @RequestParam String lastName,
-            Authentication authentication) {
-
-        // Get the logged-in user (opt)
-        String requesterEmail = authentication.getName();
-
-        // Find the target user
-        List<User> matchedUsers = userRepository.findByFirstNameIgnoreCaseAndLastNameIgnoreCaseAndStatus(
-                firstName, lastName, UserStatus.APPROVED);
-
-        if (matchedUsers.isEmpty()) {
-            return ResponseEntity.status(404).body("No approved user found with that name.");
-        }
-
-        // Get the IBANs
-        User matchedUser = matchedUsers.get(0); // assume first match only
-        List<Account> accounts = accountRepository.findByCustomer(matchedUser);
-
-        List<String> ibans = accounts.stream() //sooo this changes List<Account> → List<String>  (of IBANs)
-                .map(Account::getIBAN) //shortcut for .map(account -> account.getIBAN())
-                .toList(); //then this collects all the transformed results into a new list  List<String> ibans = [ "NL91ABNA0417164300", "NL54INGB0001234567" ]
-
-
-        AccountLookupDto result = new AccountLookupDto(
-                matchedUser.getFirstName(),
-                matchedUser.getLastName(),
-                ibans
-        );
-
-        return ResponseEntity.ok(result);
+    public ResponseEntity<Page<AccountLookupDto>> lookupAccounts(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String iban,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(accountService.lookupAccounts(name, iban, pageable));
     }
 
-    @GetMapping("/all-iban-users")
-    public ResponseEntity<?> getAllUsersWithIbans(Authentication authentication) {
-        // get all approved customers
-        List<User> approvedCustomers = userRepository.findByRoleAndStatus(
-                UserRole.CUSTOMER, UserStatus.APPROVED);
-
-        // transform each customer to an AccountLookupDto with their IBANs
-        List<AccountLookupDto> results = approvedCustomers.stream()
-                .map(user -> {
-                    // get all accounts for this user and extract IBANs
-                    List<String> ibans = accountRepository.findByCustomer(user)
-                            .stream()
-                            .map(Account::getIBAN)
-                            .toList();
-
-                    // create DTO for this user
-                    return new AccountLookupDto(
-                            user.getFirstName(),
-                            user.getLastName(),
-                            ibans
-                    );
-                })
-                .toList();
-
-        return ResponseEntity.ok(results);
+    @GetMapping("/lookup/all")
+    public ResponseEntity<Page<AccountLookupDto>> getAllUsersWithIbans(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(accountService.getAllUsersWithIbans(pageable));
     }
-
 }

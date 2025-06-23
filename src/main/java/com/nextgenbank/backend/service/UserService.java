@@ -47,24 +47,25 @@ public class UserService {
         return user;
     }
 
-    public void registerUser(RegisterRequestDto request) {
-        // Normalize email
-        String normalizedEmail = request.getEmail().toLowerCase();
-
-        // Check if email already exists
+    private void validateUniqueFields(RegisterRequestDto request, String normalizedEmail) {
         if (userRepository.findByEmail(normalizedEmail).isPresent()) {
             throw new IllegalArgumentException("Email already registered");
         }
 
-        // Check if BSN already exists
         if (userRepository.findByBsnNumber(request.getBsn()).isPresent()) {
             throw new IllegalArgumentException("BSN already registered");
         }
 
-        // Check if phone number already exists
         if (userRepository.findByPhoneNumber(request.getPhone()).isPresent()) {
             throw new IllegalArgumentException("Phone number already registered");
         }
+    }
+
+    public void registerUser(RegisterRequestDto request) {
+        // Normalize email
+        String normalizedEmail = request.getEmail().toLowerCase();
+
+        validateUniqueFields(request, normalizedEmail);
 
         User user = new User();
         user.setFirstName(request.getFirstName());
@@ -79,15 +80,16 @@ public class UserService {
 
         // Save the user first to get an ID
         User savedUser = userRepository.save(user);
-        
+
         // Create checking and savings accounts for the new user
         // Default transfer limit is 1000
-        String transferLimit = "1000";
-        createAccount(savedUser, AccountType.CHECKING, transferLimit);
-        createAccount(savedUser, AccountType.SAVINGS, transferLimit);
-        
-        System.out.println("Registered new user with ID: " + savedUser.getUserId() + 
-                           " and created accounts with transfer limit: " + transferLimit);
+//        String transferLimit = "1000";
+//        createAccount(savedUser, AccountType.CHECKING, transferLimit);
+//        createAccount(savedUser, AccountType.SAVINGS, transferLimit);
+//
+        System.out.println("Registered new user with ID: " + savedUser.getUserId() +
+                ". Pending approval by employee.");
+
     }
 
     private void createAccount(User customer, AccountType accountType, String transferLimitStr) {
@@ -122,5 +124,10 @@ public class UserService {
 
         Account savedAccount = accountRepository.save(account);
         System.out.println("Created " + accountType + " account with IBAN: " + savedAccount.getIBAN());
+    }
+
+    public User getByEmailOrThrow(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
     }
 }

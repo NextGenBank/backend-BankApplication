@@ -6,6 +6,11 @@ public class SwitchFundsRequestDto {
     private String from;
     private BigDecimal amount;
 
+    public SwitchFundsRequestDto(String checking, BigDecimal bigDecimal) {
+        this.from = checking;
+        this.amount = bigDecimal;
+    }
+
     public String getFrom() {
         return from;
     }

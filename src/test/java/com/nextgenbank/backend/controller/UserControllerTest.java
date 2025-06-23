@@ -4,34 +4,27 @@ import com.nextgenbank.backend.model.User;
 import com.nextgenbank.backend.model.UserRole;
 import com.nextgenbank.backend.model.UserStatus;
 import com.nextgenbank.backend.model.dto.UserDto;
-import com.nextgenbank.backend.repository.UserRepository;
 import com.nextgenbank.backend.security.JwtProvider;
 import com.nextgenbank.backend.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 public class UserControllerTest {
 
-    private UserRepository userRepository;
     private JwtProvider jwtProvider;
     private UserController userController;
     private UserService userService;
 
-
     @BeforeEach
     void setUp() {
-        userRepository = mock(UserRepository.class);
         jwtProvider = mock(JwtProvider.class);
-        userService = Mockito.mock(UserService.class);
-        userController = new UserController(userRepository, jwtProvider, userService);
+        userService = mock(UserService.class);
+        userController = new UserController(jwtProvider, userService);
     }
 
     @Test
@@ -51,7 +44,7 @@ public class UserControllerTest {
         user.setRole(UserRole.CUSTOMER);
         user.setStatus(UserStatus.APPROVED);
 
-        when(userRepository.findByEmail(testEmail)).thenReturn(Optional.of(user));
+        when(userService.getByEmailOrThrow(testEmail)).thenReturn(user);
 
         // Act
         ResponseEntity<UserDto> response = userController.getCurrentUser(auth);
@@ -70,9 +63,10 @@ public class UserControllerTest {
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("notfound@example.com");
 
-        when(userRepository.findByEmail("notfound@example.com")).thenReturn(Optional.empty());
+        when(userService.getByEmailOrThrow("notfound@example.com"))
+                .thenThrow(new RuntimeException("User not found"));
 
         // Act & Assert
-        assertThrows(Exception.class, () -> userController.getCurrentUser(auth));
+        assertThrows(RuntimeException.class, () -> userController.getCurrentUser(auth));
     }
 }

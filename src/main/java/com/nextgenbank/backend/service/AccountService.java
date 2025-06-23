@@ -16,11 +16,11 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.TypedQuery;
 
 import java.util.stream.Collectors;
 
@@ -37,7 +37,6 @@ public class AccountService {
     }
     @PersistenceContext
     private EntityManager entityManager;
-
 
     /**
      * Get all accounts for a customer
@@ -133,42 +132,33 @@ public class AccountService {
      * Rolls back transaction if any error occurs.
      */
     @Transactional
-    public void createAccountsForUser(User user) {
+    public void createAccountsForUser(User user, User employee) {
+        if (employee.getRole() != UserRole.EMPLOYEE) {
+            throw new IllegalArgumentException("Only employees can create accounts for users.");
+        }
+
         try {
-            // Find a default employee to set as creator
-            User employee = userRepository.findAll().stream()
-                    .filter(u -> u.getRole() == UserRole.EMPLOYEE)
-                    .findFirst()
-                    .orElseThrow(() -> new RuntimeException("No employee found to assign as creator"));
+            Account checking = createAccount(user, employee, AccountType.CHECKING);
+            Account savings = createAccount(user, employee, AccountType.SAVINGS);
 
-            // Create checking account
-            Account checking = new Account();
-            checking.setIBAN(generateUniqueIBAN());
-            checking.setCustomer(user);
-            checking.setAccountType(AccountType.CHECKING);
-            checking.setBalance(BigDecimal.ZERO);
-            checking.setAbsoluteTransferLimit(new BigDecimal("5000"));
-            checking.setDailyTransferAmount(BigDecimal.ZERO);
-            checking.setCreatedBy(employee);
-            checking.setCreatedAt(java.time.LocalDateTime.now());
-
-            // Create savings account
-            Account savings = new Account();
-            savings.setIBAN(generateUniqueIBAN());
-            savings.setCustomer(user);
-            savings.setAccountType(AccountType.SAVINGS);
-            savings.setBalance(BigDecimal.ZERO);
-            savings.setAbsoluteTransferLimit(new BigDecimal("5000"));
-            savings.setDailyTransferAmount(BigDecimal.ZERO);
-            savings.setCreatedBy(employee);
-            savings.setCreatedAt(java.time.LocalDateTime.now());
-
-            // Save both accounts
             accountRepository.save(checking);
             accountRepository.save(savings);
         } catch (Exception e) {
             throw new RuntimeException("Failed to create accounts for user: " + user.getUserId(), e);
         }
+    }
+
+    private Account createAccount(User customer, User employee, AccountType type) {
+        Account account = new Account();
+        account.setIBAN(generateUniqueIBAN());
+        account.setCustomer(customer);
+        account.setAccountType(type);
+        account.setBalance(BigDecimal.ZERO);
+        account.setAbsoluteTransferLimit(new BigDecimal("5000"));
+        account.setDailyTransferAmount(BigDecimal.ZERO);
+        account.setCreatedBy(employee);
+        account.setCreatedAt(LocalDateTime.now());
+        return account;
     }
 
     // paginated + filtered lookup
@@ -214,5 +204,4 @@ public class AccountService {
     public List<Account> getAccountsForUser(User user) {
         return accountRepository.findByCustomer(user);
     }
-
 }

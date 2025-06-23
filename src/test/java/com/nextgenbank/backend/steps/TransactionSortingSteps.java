@@ -38,6 +38,7 @@ public class TransactionSortingSteps {
         latestResponse = restTemplate.postForEntity("/auth/login", entity, String.class);
 
         try {
+            //ObjectMapper to parse the JSON response and extract the token field, I sote the token in the authToken for future requests
             authToken = objectMapper.readTree(latestResponse.getBody()).get("token").asText();
         } catch (Exception e) {
             fail("Failed to extract token: " + e.getMessage());
@@ -66,7 +67,7 @@ public class TransactionSortingSteps {
                 t.transactionType(), t.amount(), t.timestamp()));
 
         assertFalse(transactions.isEmpty(), "No transactions returned");
-        assertTrue(isSortedAscending(transactions, Comparator.comparing(dto -> dto.transactionType().name())),
+        assertTrue(isSortedAscending(transactions, Comparator.comparing(dto -> dto.transactionType().name())), //returns the enum name as a string for comparison
                 "Transactions are not sorted by type in ascending order");
     }
 
@@ -75,7 +76,7 @@ public class TransactionSortingSteps {
         headers.setBearerAuth(authToken);
         HttpEntity<Void> request = new HttpEntity<>(headers);
 
-        String url = String.format("/api/transactions?sort=%s", sortParam);
+        String url = String.format("/api/transactions?sort=%s", sortParam); //builds the final URL with the query parameter
         latestResponse = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
     }
 

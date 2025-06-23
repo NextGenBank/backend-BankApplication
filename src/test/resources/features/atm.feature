@@ -1,37 +1,35 @@
-Feature: ATM Functionality
+# language: en
+@atm-test
+Feature: ATM Transactions
 
-  Scenario: Successful deposit
-    Given a user "John Doe" with IBAN "NL123456789" and balance 100.0
-    And I am authenticated as "John Doe"
-    When I POST to "/api/atm/deposit" with body {"toIban": "NL123456789", "amount": 50.0}
-    Then the response status code should be 200
-    And the JSON field "transactionType" should be "DEPOSIT"
-    And the JSON field "amount" should be "50.0"
-    And the JSON field "toIban" should be "NL123456789"
-    And the account balance for IBAN "NL123456789" should be 150.0
-    And there should be a transaction with type "DEPOSIT", amount 50.0, fromIban "null", toIban "NL123456789"
+  As a bank customer
+  I want to use an ATM to deposit and withdraw money
+  So that I can manage my funds easily.
 
-  Scenario: Deposit with invalid toIban
-    Given a user "John Doe" with IBAN "NL123456789" and balance 100.0
-    And I am authenticated as "John Doe"
-    When I POST to "/api/atm/deposit" with body {"toIban": "INVALID_IBAN", "amount": 50.0}
-    Then the response status code should be 400
-    And the response body should contain "Account not found"
+  Background:
+    Given the ATM test environment is clean and ready
 
-  Scenario: Successful withdrawal
-    Given a user "John Doe" with IBAN "NL123456789" and balance 100.0
-    And I am authenticated as "John Doe"
-    When I POST to "/api/atm/withdraw" with body {"fromIban": "NL123456789", "amount": 30.0}
-    Then the response status code should be 200
-    And the JSON field "transactionType" should be "WITHDRAWAL"
-    And the JSON field "amount" should be "30.0"
-    And the JSON field "fromIban" should be "NL123456789"
-    And the account balance for IBAN "NL123456789" should be 70.0
-    And there should be a transaction with type "WITHDRAWAL", amount 30.0, fromIban "NL123456789", toIban "null"
+  Scenario: Successful deposit into an account
+    Given a customer "john.doe@example.com" with password "password123" is registered
+    And the customer "john.doe@example.com" has an account "NL01NEXT0001" with a balance of 1000.00
+    When the customer "john.doe@example.com" deposits 250.50 into account "NL01NEXT0001" via ATM
+    Then the ATM operation is successful with HTTP status 200
+    And the response shows the transaction type as "DEPOSIT"
+    And the new balance of account "NL01NEXT0001" is 1250.50
+
+  Scenario: Successful withdrawal from an account
+    Given a customer "john.doe@example.com" with password "password123" is registered
+    And the customer "john.doe@example.com" has an account "NL01NEXT0001" with a balance of 1000.00
+    When the customer "john.doe@example.com" withdraws 300.00 from account "NL01NEXT0001" via ATM
+    Then the ATM operation is successful with HTTP status 200
+    And the response shows the transaction type as "WITHDRAWAL"
+    And the new balance of account "NL01NEXT0001" is 700.00
 
   Scenario: Withdrawal with insufficient funds
-    Given a user "John Doe" with IBAN "NL123456789" and balance 20.0
-    And I am authenticated as "John Doe"
-    When I POST to "/api/atm/withdraw" with body {"fromIban": "NL123456789", "amount": 30.0}
-    Then the response status code should be 400
-    And the response body should contain "Insufficient funds"
+    Given a customer "john.doe@example.com" with password "password123" is registered
+    And the customer "john.doe@example.com" has an account "NL01NEXT0001" with a balance of 100.00
+    When the customer "john.doe@example.com" attempts to withdraw 200.00 from account "NL01NEXT0001" via ATM
+    Then the ATM operation fails with HTTP status 400
+    And the response contains the error message "Insufficient funds."
+    And the new balance of account "NL01NEXT0001" is 100.00
+

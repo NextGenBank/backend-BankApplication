@@ -1,5 +1,6 @@
 package com.nextgenbank.backend.controller;
 
+import com.nextgenbank.backend.model.dto.MessageResponseDto;
 import com.nextgenbank.backend.model.dto.RegisterRequestDto;
 import com.nextgenbank.backend.service.UserService;
 import jakarta.validation.Valid;
@@ -19,6 +20,6 @@ public class RegisterController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequestDto request) {
         userService.registerUser(request);
-        return ResponseEntity.ok("Registration successful");
+        return ResponseEntity.ok(new MessageResponseDto("Registration successful"));
     }
 }

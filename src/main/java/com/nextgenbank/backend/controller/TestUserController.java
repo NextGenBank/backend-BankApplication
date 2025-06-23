@@ -22,7 +22,7 @@ public class TestUserController {
         return ResponseEntity.ok(userRepository.findByEmail(email).isPresent());
     }
 
-    // ✅ NEW endpoint for showing user data
+    // New endpoint for showing user data
     @GetMapping("/get-user")
     public ResponseEntity<?> getUserDetails(@RequestParam String email) {
         Optional<User> user = userRepository.findByEmail(email);

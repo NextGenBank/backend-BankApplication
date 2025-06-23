@@ -70,8 +70,7 @@ public class EmployeeService {
      * Approves a customer and creates their accounts.
      * @return The approved customer DTO
      */
-    @Transactional
-    public UserDto approveCustomer(Long customerId) {
+    public void approveCustomer(Long customerId, User employee) {
         User user = userRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + customerId));
 
@@ -87,9 +86,7 @@ public class EmployeeService {
         User savedUser = userRepository.save(user);
 
         // Create IBAN accounts
-        accountService.createAccountsForUser(savedUser);
-        
-        return new UserDto(savedUser);
+        accountService.createAccountsForUser(user, employee);
     }
 
     /**

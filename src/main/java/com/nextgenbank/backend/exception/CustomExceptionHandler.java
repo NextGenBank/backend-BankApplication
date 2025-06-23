@@ -35,23 +35,8 @@ public class CustomExceptionHandler {
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponseDto> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
-        ErrorResponseDto errorResponse = new ErrorResponseDto(
-                "Invalid request: " + ex.getMessage(),
-                request.getRequestURI(),
-                HttpStatus.BAD_REQUEST.value()
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
-    }
-    
-    @ExceptionHandler(SecurityException.class)
-    public ResponseEntity<ErrorResponseDto> handleSecurityException(SecurityException ex, HttpServletRequest request) {
-        ErrorResponseDto errorResponse = new ErrorResponseDto(
-                "Security violation: " + ex.getMessage(), 
-                request.getRequestURI(),
-                HttpStatus.FORBIDDEN.value()
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
     }
 
     @ExceptionHandler({UsernameNotFoundException.class, BadCredentialsException.class})
@@ -94,3 +79,4 @@ public class CustomExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
+

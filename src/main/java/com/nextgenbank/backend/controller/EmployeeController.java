@@ -14,9 +14,11 @@ import com.nextgenbank.backend.service.TransactionService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import com.nextgenbank.backend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,12 +31,14 @@ public class EmployeeController {
     private final UserRepository userRepository;
     private final EmployeeService employeeService;
     private final TransactionService transactionService;
+    private final UserService userService;
 
     public EmployeeController(AccountRepository accountRepository,
-                              UserRepository userRepository, EmployeeService employeeService, TransactionService transactionService) {
-        this.userRepository = userRepository;
+                              UserRepository userRepository, EmployeeService employeeService, TransactionService transactionService, UserService userService) {
+        this.userRepository   = userRepository;
         this.employeeService = employeeService;
         this.transactionService = transactionService;
+        this.userService = userService;
     }
 
     /**
@@ -100,12 +104,29 @@ public class EmployeeController {
      */
     @GetMapping("/status")
     public ResponseEntity<List<UserDto>> getAccountsByStatus(@RequestParam UserStatus status) {
+        List<User> customers = userRepository.findByRoleAndStatus(UserRole.CUSTOMER, status);
+
+        List<UserDto> result = customers.stream()
+                .map(UserDto::new)
+                .toList();
+
+        return ResponseEntity.ok(result);
+    }
+
+    @PutMapping("/approve/{customerId}")
+    public ResponseEntity<?> approveCustomer(
+            @PathVariable Long customerId,
+            Authentication authentication
+    ) {
         try {
-            List<User> customers = userRepository.findByRoleAndStatus(UserRole.CUSTOMER, status);
-            List<UserDto> result = customers.stream()
-                    .map(UserDto::new)
-                    .toList();
-            return ResponseEntity.ok(result);
+            String email = authentication.getName();
+            User employee = userService.getByEmailOrThrow(email);
+
+            employeeService.approveCustomer(customerId, employee);
+
+            return ResponseEntity.ok(Map.of("message", "Customer approved successfully"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             throw new RuntimeException("Error fetching customers by status: " + e.getMessage(), e);
         }

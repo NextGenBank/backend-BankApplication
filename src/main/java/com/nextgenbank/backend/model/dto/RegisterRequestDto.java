@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-
 public class RegisterRequestDto {
 
     @NotBlank(message = "First name is required")

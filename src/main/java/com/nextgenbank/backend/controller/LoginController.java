@@ -31,5 +31,4 @@ public class LoginController {
 
         return ResponseEntity.ok(new LoginResponseDto(token, userDto));
     }
-
 }

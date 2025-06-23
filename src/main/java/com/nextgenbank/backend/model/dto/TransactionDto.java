@@ -20,7 +20,6 @@ public class TransactionDto {
     private UserRole userRole;
     private TransactionType transactionType;
 
-
     public TransactionDto() { }
 
     public TransactionDto(Transaction transaction) {
@@ -46,8 +45,6 @@ public class TransactionDto {
 
         this.transactionType = transaction.getTransactionType();
     }
-
-
 
     public String getFromIban() {
         return fromIban;

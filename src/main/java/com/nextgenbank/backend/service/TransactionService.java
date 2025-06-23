@@ -6,7 +6,6 @@ import com.nextgenbank.backend.model.dto.TransferRequestDto;
 import com.nextgenbank.backend.repository.UserRepository;
 import com.nextgenbank.backend.model.dto.SwitchFundsRequestDto;
 import com.nextgenbank.backend.model.dto.SwitchFundsResponseDto;
-import com.nextgenbank.backend.model.dto.TransactionResponseDto;
 import com.nextgenbank.backend.repository.AccountRepository;
 import com.nextgenbank.backend.repository.TransactionRepository;
 import jakarta.transaction.Transactional;
@@ -14,7 +13,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import com.nextgenbank.backend.mapper.TransactionMapper;
 
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
@@ -354,5 +352,39 @@ public class TransactionService {
                 .filter(transaction -> transaction.getAmount().compareTo(BigDecimal.ZERO) == 0)
                 .map(TransactionDto::new)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public Transaction performAtmOperation(User initiator, String iban, BigDecimal amount, TransactionType type) {
+        if (type != TransactionType.DEPOSIT && type != TransactionType.WITHDRAWAL) {
+            throw new IllegalArgumentException("Invalid transaction type for ATM operation.");
+        }
+
+        Account account = accountRepository.findById(iban)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + iban));
+
+        if (!account.getCustomer().getUserId().equals(initiator.getUserId())) {
+            throw new IllegalArgumentException("Access denied to this account.");
+        }
+
+        Transaction tx = new Transaction();
+        tx.setAmount(amount);
+        tx.setTransactionType(type);
+        tx.setTimestamp(LocalDateTime.now());
+        tx.setInitiator(initiator);
+
+        if (type == TransactionType.DEPOSIT) {
+            account.setBalance(account.getBalance().add(amount));
+            tx.setToAccount(account);
+        } else { // WITHDRAWAL
+            if (account.getBalance().compareTo(amount) < 0) {
+                throw new IllegalArgumentException("Insufficient funds.");
+            }
+            account.setBalance(account.getBalance().subtract(amount));
+            tx.setFromAccount(account);
+        }
+
+        accountRepository.save(account);
+        return transactionRepository.save(tx);
     }
 }

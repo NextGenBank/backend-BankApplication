@@ -151,44 +151,39 @@ public class AccountService {
         return account;
     }
 
-    // paginated + filtered lookup
+    private AccountLookupDto convertUserToAccountLookupDto(User user, String ibanFilter) {
+        List<String> filteredIbans = user.getAccountsOwned().stream()
+                .map(Account::getIBAN)
+                .filter(accountIban -> ibanFilter == null || ibanFilter.isBlank() ||
+                        accountIban.toLowerCase().contains(ibanFilter.toLowerCase()))
+                .collect(Collectors.toList());
+
+        return new AccountLookupDto(
+                user.getFirstName(),
+                user.getLastName(),
+                filteredIbans
+        );
+    }
+
     public Page<AccountLookupDto> lookupAccounts(String name, String iban, Pageable pageable) {
         Page<User> usersPage = userRepository.findApprovedUsersWithAccounts(name, iban, pageable);
 
         List<AccountLookupDto> dtoList = usersPage.getContent().stream()
-                .map(user -> {
-                    List<String> filteredIbans = user.getAccountsOwned().stream()
-                            .map(Account::getIBAN)
-                            .filter(accountIban ->
-                                    iban == null || iban.isBlank() || accountIban.toLowerCase().contains(iban.toLowerCase())
-                            )
-                            .collect(Collectors.toList());
-
-                    return new AccountLookupDto(
-                            user.getFirstName(),
-                            user.getLastName(),
-                            filteredIbans
-                    );
-                })
+                .map(user -> convertUserToAccountLookupDto(user, iban))
                 .filter(dto -> !dto.getIbans().isEmpty())
                 .collect(Collectors.toList());
 
         return new PageImpl<>(dtoList, pageable, usersPage.getTotalElements());
     }
 
-    // paginated "get all"
     public Page<AccountLookupDto> getAllUsersWithIbans(Pageable pageable) {
         Page<User> usersPage = userRepository.findApprovedUsersWithAccounts(null, null, pageable);
 
         List<AccountLookupDto> dtos = usersPage.getContent().stream()
-                .map(user -> new AccountLookupDto(
-                        user.getFirstName(),
-                        user.getLastName(),
-                        user.getAccountsOwned().stream().map(Account::getIBAN).toList()
-                ))
+                .map(user -> convertUserToAccountLookupDto(user, null))
                 .toList();
 
-        return new org.springframework.data.domain.PageImpl<>(dtos, pageable, usersPage.getTotalElements());
+        return new PageImpl<>(dtos, pageable, usersPage.getTotalElements());
     }
 
     public List<Account> getAccountsForUser(User user) {

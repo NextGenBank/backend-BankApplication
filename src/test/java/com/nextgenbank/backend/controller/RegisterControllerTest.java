@@ -1,5 +1,6 @@
 package com.nextgenbank.backend.controller;
 
+import com.nextgenbank.backend.model.dto.MessageResponseDto;
 import com.nextgenbank.backend.model.dto.RegisterRequestDto;
 import com.nextgenbank.backend.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-public class RegisterControllerTest {
+class RegisterControllerTest {  // Removed 'public' modifier (not needed for tests)
 
     private UserService userService;
     private RegisterController registerController;
@@ -37,6 +38,9 @@ public class RegisterControllerTest {
         // Assert
         verify(userService, times(1)).registerUser(request);
         assertEquals(200, response.getStatusCodeValue());
-        assertEquals("Registration successful", response.getBody());
+
+        // Check if response body is MessageResponseDto and has correct message
+        assertTrue(response.getBody() instanceof MessageResponseDto);
+        assertEquals("Registration successful", ((MessageResponseDto) response.getBody()).getMessage());
     }
 }

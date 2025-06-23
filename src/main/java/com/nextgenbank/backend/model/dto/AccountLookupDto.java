@@ -7,7 +7,6 @@ public class AccountLookupDto {
     private String lastName;
     private List<String> ibans;
 
-    // ✅ No-argument constructor required for Jackson
     public AccountLookupDto() {
     }
 
@@ -29,7 +28,6 @@ public class AccountLookupDto {
         return ibans;
     }
 
-    // Optional but useful: Setters
     public void setFirstName(String firstName) {
         this.firstName = firstName;
     }

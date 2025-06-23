@@ -27,8 +27,10 @@ public class CustomerTransactionSteps {
     private String authToken;
 
     private List<TransactionResponseDto> extractTransactionContent() throws Exception {
+        //the latest response return the raw JSON response from the backend as a string, then with this obj mapper i parse this string into a tree-like JSON structure
         JsonNode json = objectMapper.readTree(latestResponse.getBody());
         JsonNode contentNode = json.get("content");
+        //I'm telling to read this contentNode as a List of TransactionResponseDto objects, so it maps every JSON object in the content array to a TransactionResponseDto
         return objectMapper.readerForListOf(TransactionResponseDto.class).readValue(contentNode);
     }
 
@@ -39,11 +41,11 @@ public class CustomerTransactionSteps {
 
     @Given("the customer logs in with email {string} and password {string}")
     public void the_customer_logs_in_with_email_and_password(String email, String password) {
-        String loginUrl = "/auth/login";
-        String loginRequest = String.format("{\"email\":\"%s\", \"password\":\"%s\"}", email, password);
+        String loginUrl = "/auth/login"; //api endpoint
+        String loginRequest = String.format("{\"email\":\"%s\", \"password\":\"%s\"}", email, password); //builds a json string
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setContentType(MediaType.APPLICATION_JSON); //Content-Type: application/json
         HttpEntity<String> requestEntity = new HttpEntity<>(loginRequest, headers);
 
         latestResponse = restTemplate.postForEntity(loginUrl, requestEntity, String.class);
@@ -102,7 +104,7 @@ public class CustomerTransactionSteps {
     @Then("the response should be unauthorized")
     public void the_response_should_be_unauthorized() {
         assertNotNull(latestResponse);
-        assertEquals(HttpStatus.UNAUTHORIZED, latestResponse.getStatusCode());
+        assertEquals(HttpStatus.UNAUTHORIZED, latestResponse.getStatusCode()); //401 unauthorized
     }
 
     @Then("the response should contain only transactions belonging to {string}")

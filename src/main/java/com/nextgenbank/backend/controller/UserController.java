@@ -30,13 +30,4 @@ public class UserController {
         return ResponseEntity.ok(new UserDto(user));
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody RegisterRequestDto request) {
-        try {
-            userService.registerUser(request);
-            return ResponseEntity.ok(Map.of("message", "User registered successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
 }

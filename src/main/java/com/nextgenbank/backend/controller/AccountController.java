@@ -2,6 +2,7 @@ package com.nextgenbank.backend.controller;
 
 import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.User;
+import com.nextgenbank.backend.model.dto.AccountDto;
 import com.nextgenbank.backend.model.dto.ApprovalRequestDto;
 
 import com.nextgenbank.backend.service.AccountService;

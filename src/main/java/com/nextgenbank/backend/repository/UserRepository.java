@@ -20,32 +20,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByBsnNumber(String bsnNumber);
     Optional<User> findByPhoneNumber(String phoneNumber);
 
-    List<User> findByFirstNameIgnoreCaseAndLastNameIgnoreCaseAndStatus(String firstName, String lastName, UserStatus userStatus);
-    
     // Paginated queries for Employee features
     Page<User> findByRoleAndStatus(UserRole role, UserStatus status, Pageable pageable);
     List<User> findByRoleAndStatus(UserRole role, UserStatus status); // Keep non-paginated version for compatibility
     
     Page<User> findByRole(UserRole role, Pageable pageable);
     List<User> findByRole(UserRole role); // Keep non-paginated version for compatibility
-
-    @Query("""
-        SELECT DISTINCT u FROM User u
-        LEFT JOIN FETCH u.accountsOwned
-        WHERE u.status = :status AND u.role = :role
-    """)
-    List<User> findApprovedCustomersWithAccounts(@Param("status") UserStatus status, @Param("role") UserRole role);
-
-    @Query("""
-        SELECT u FROM User u
-        LEFT JOIN FETCH u.accountsOwned
-        WHERE LOWER(u.firstName) = LOWER(:firstName)
-          AND LOWER(u.lastName) = LOWER(:lastName)
-          AND u.status = :status
-    """)
-    List<User> findByNameAndStatusWithAccounts(@Param("firstName") String firstName,
-                                               @Param("lastName") String lastName,
-                                               @Param("status") UserStatus status);
 
     @Query("""
         SELECT DISTINCT u FROM User u

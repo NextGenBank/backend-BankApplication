@@ -127,10 +127,6 @@ public class TransactionService {
         }
     }
 
-    private LocalDate parseDate(String dateStr) {
-        return dateStr != null ? LocalDate.parse(dateStr) : null;
-    }
-
     /**
      * Get all transactions with pagination
      */

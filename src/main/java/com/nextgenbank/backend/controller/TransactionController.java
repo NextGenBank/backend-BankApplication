@@ -43,9 +43,6 @@ public class TransactionController {
         this.userService = userService;
     }
 
-    /**
-     * Get filtered transactions for the current user with pagination
-     */
     @GetMapping
     public ResponseEntity<Page<TransactionResponseDto>> getTransactions(
             @RequestParam(required = false) String iban,
@@ -56,8 +53,8 @@ public class TransactionController {
             @RequestParam(required = false) BigDecimal amount,
             @RequestParam(required = false) String amountFilter,
             @PageableDefault(size = 10, page = 0) Pageable pageable,
-            Principal principal,
-            HttpServletRequest request
+            Principal principal
+//            HttpServletRequest request // Full HTTP request metadata
     ) {
         try {
             User user = userService.getByEmailOrThrow(principal.getName());

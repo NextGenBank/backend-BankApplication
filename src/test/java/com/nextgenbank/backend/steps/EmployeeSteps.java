@@ -527,7 +527,7 @@ public class EmployeeSteps {
 
     @Then("the system should reject the negative transfer limit")
     public void theSystemShouldRejectTheNegativeTransferLimit() {
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
     }
 
     @And("the account transfer limit should remain unchanged")

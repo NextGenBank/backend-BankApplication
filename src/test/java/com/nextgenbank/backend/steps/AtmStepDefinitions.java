@@ -31,42 +31,33 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 
 /**
  * Step definitions for ATM transactions.
- *
- * Scenarios in atm.feature are tagged with @atm-test.
- * After each such scenario, the Spring context is marked dirty
- * via @DirtiesContext, ensuring a fresh context for the next run.
+ * This class is self-contained and uses a manual setup for MockMvc to avoid
+ * conflicting with other Cucumber test configurations in the project.
  */
 public class AtmStepDefinitions {
 
     @Autowired
     private WebApplicationContext wac;
-    // Web application context used to initialize MockMvc
 
     @Autowired
     private ObjectMapper objectMapper;
-    // Jackson ObjectMapper for serializing DTOs to JSON
 
     @Autowired
     private UserRepository userRepository;
-    // Repository for creating and finding users
 
     @Autowired
     private AccountRepository accountRepository;
-    // Repository for creating accounts and checking balances
 
     @Autowired
     private PasswordEncoder passwordEncoder;
-    // Password encoder to hash user passwords
 
     private MockMvc mockMvc;
-    // MockMvc client for performing HTTP requests in tests
-
     private ResultActions lastResult;
-    // Holds the result of the last HTTP request for assertions
 
     /**
-     * Given step: prepare a clean ATM test environment.
-     * Builds a MockMvc instance with Spring Security enabled.
+     * Given step: Prepares the test environment before the background steps run.
+     * Manually builds a MockMvc instance with Spring Security integration.
+     * This is the key to avoiding dependency conflicts.
      */
     @Given("the ATM test environment is clean and ready")
     public void the_atm_test_environment_is_clean_and_ready() {
@@ -76,19 +67,18 @@ public class AtmStepDefinitions {
     }
 
     /**
-     * After hook for @atm-test scenarios.
-     * Marks the context as dirty so that it will be reloaded.
-     * This prevents ATM-specific cleanup from affecting other tests.
+     * After hook for scenarios tagged with @atm-test.
+     * @DirtiesContext ensures the Spring context is reset after these specific
+     * scenarios run, providing complete isolation from other tests.
      */
     @After("@atm-test")
     @DirtiesContext
     public void afterAtmScenario() {
-        // No implementation needed; @DirtiesContext triggers context reset
+        // The annotation handles the context reset automatically.
     }
 
     /**
-     * Given step: register a customer with the given email and password,
-     * if they do not already exist in the database.
+     * Given step: Registers a customer if they don't already exist.
      */
     @Given("a customer {string} with password {string} is registered")
     public void a_customer_with_password_is_registered(String email, String password) {
@@ -108,14 +98,15 @@ public class AtmStepDefinitions {
     }
 
     /**
-     * Given step: create an account with the specified IBAN and balance
-     * for the customer identified by email.
+     * Given step: Creates an account for a customer with a specific balance.
+     * If an account with the same IBAN exists, it will be updated (useful for overriding Background steps).
      */
     @Given("the customer {string} has an account {string} with a balance of {double}")
     public void the_customer_has_an_account_with_a_balance_of(String email, String iban, double balance) {
         User customer = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("User not found: " + email));
-        Account account = new Account();
+
+        Account account = accountRepository.findById(iban).orElse(new Account());
         account.setIBAN(iban);
         account.setCustomer(customer);
         account.setBalance(BigDecimal.valueOf(balance).setScale(2, RoundingMode.HALF_UP));
@@ -125,8 +116,7 @@ public class AtmStepDefinitions {
     }
 
     /**
-     * When step: deposit the given amount into the specified account via ATM.
-     * Sends a POST to /api/transactions/atm with a DEPOSIT DTO.
+     * When step: Simulates a customer depositing money via ATM.
      */
     @When("the customer {string} deposits {double} into account {string} via ATM")
     public void the_customer_deposits_into_account_via_atm(String email, double amount, String iban) throws Exception {
@@ -142,8 +132,7 @@ public class AtmStepDefinitions {
     }
 
     /**
-     * When step: withdraw the given amount from the specified account via ATM.
-     * Delegates to performWithdraw.
+     * When step: Simulates a customer withdrawing money via ATM.
      */
     @When("the customer {string} withdraws {double} from account {string} via ATM")
     public void the_customer_withdraws_from_account_via_atm(String email, double amount, String iban) throws Exception {
@@ -151,17 +140,13 @@ public class AtmStepDefinitions {
     }
 
     /**
-     * When step: attempt to withdraw (possibly insufficient) via ATM.
-     * Also delegates to performWithdraw.
+     * When step: Simulates a customer attempting to withdraw money, possibly failing.
      */
     @When("the customer {string} attempts to withdraw {double} from account {string} via ATM")
     public void the_customer_attempts_to_withdraw_from_account_via_atm(String email, double amount, String iban) throws Exception {
         performWithdraw(email, amount, iban);
     }
 
-    /**
-     * Helper method to perform a withdrawal POST request.
-     */
     private void performWithdraw(String email, double amount, String iban) throws Exception {
         TransactionDto dto = new TransactionDto();
         dto.setTransactionType(TransactionType.WITHDRAWAL);
@@ -174,33 +159,21 @@ public class AtmStepDefinitions {
                 .content(objectMapper.writeValueAsString(dto)));
     }
 
-    /**
-     * Then step: assert that the operation succeeded with the given HTTP status.
-     */
     @Then("the ATM operation is successful with HTTP status {int}")
     public void the_atm_operation_is_successful_with_http_status(int statusCode) throws Exception {
         lastResult.andExpect(status().is(statusCode));
     }
 
-    /**
-     * Then step: assert that the operation failed with the given HTTP status.
-     */
     @Then("the ATM operation fails with HTTP status {int}")
     public void the_atm_operation_fails_with_http_status(int statusCode) throws Exception {
         lastResult.andExpect(status().is(statusCode));
     }
 
-    /**
-     * Then step: check that the JSON response field transactionType matches.
-     */
     @Then("the response shows the transaction type as {string}")
     public void the_response_shows_the_transaction_type_as(String type) throws Exception {
         lastResult.andExpect(jsonPath("$.transactionType", is(type)));
     }
 
-    /**
-     * Then step: verify the new account balance in the database.
-     */
     @Then("the new balance of account {string} is {double}")
     public void the_new_balance_of_account_is(String iban, double newBalance) {
         Account updated = accountRepository.findById(iban)
@@ -209,9 +182,6 @@ public class AtmStepDefinitions {
         assertEquals(0, expected.compareTo(updated.getBalance()), "Balance mismatch");
     }
 
-    /**
-     * Then step: assert that the response body contains the specified error message.
-     */
     @Then("the response contains the error message {string}")
     public void the_response_contains_the_error_message(String message) throws Exception {
         lastResult.andExpect(content().string(containsString(message)));

@@ -158,44 +158,73 @@ public class TransactionController {
             @RequestBody TransactionDto dto,
             @CurrentUser UserPrincipal principal
     ) {
-        TransactionType type = dto.getTransactionType();
-        if (dto.getAmount() == null || type == null) {
-            return ResponseEntity.badRequest().body("Fields 'amount' and 'transactionType' are required.");
-        }
-
-        String iban;
-        if (type == TransactionType.DEPOSIT) {
-            iban = dto.getToIban();
-            if (iban == null) return ResponseEntity.badRequest().body("Field 'toIban' is required for deposit.");
-        } else if (type == TransactionType.WITHDRAWAL) {
-            iban = dto.getFromIban();
-            if (iban == null) return ResponseEntity.badRequest().body("Field 'fromIban' is required for withdrawal.");
-        } else {
-            return ResponseEntity.badRequest().body("Invalid transaction type for ATM operation.");
-        }
-
         try {
+            // Step 1: Validate request and extract necessary data
+            String iban = validateAndGetIbanForAtm(dto);
             User user = principal.getUser();
-            Transaction tx = transactionService.performAtmOperation(user, iban, dto.getAmount(), type);
 
-            TransactionResponseDto responseDto;
-            if (tx.getTransactionType() == TransactionType.DEPOSIT) {
-                String toName = tx.getToAccount().getCustomer().getFirstName() + " " + tx.getToAccount().getCustomer().getLastName();
-                responseDto = new TransactionResponseDto(
-                        tx.getTransactionId(), tx.getTransactionType(), tx.getAmount(), tx.getTimestamp(),
-                        null, null, tx.getToAccount().getIBAN(), toName, "DEPOSIT"
-                );
-            } else { // WITHDRAWAL
-                String fromName = tx.getFromAccount().getCustomer().getFirstName() + " " + tx.getFromAccount().getCustomer().getLastName();
-                responseDto = new TransactionResponseDto(
-                        tx.getTransactionId(), tx.getTransactionType(), tx.getAmount(), tx.getTimestamp(),
-                        tx.getFromAccount().getIBAN(), fromName, null, null, "WITHDRAWAL"
-                );
-            }
+            // Step 2: Call the business logic in the service layer
+            Transaction completedTransaction = transactionService.performAtmOperation(
+                    user, iban, dto.getAmount(), dto.getTransactionType()
+            );
+
+            // Step 3: Build and return the successful response
+            TransactionResponseDto responseDto = buildAtmTransactionResponse(completedTransaction);
             return ResponseEntity.ok(responseDto);
 
         } catch (IllegalArgumentException ex) {
+            // A single catch block for all validation and business logic errors
             return ResponseEntity.badRequest().body(ex.getMessage());
+        }
+    }
+
+    /**
+     * Validates the incoming TransactionDto for an ATM operation and returns the relevant IBAN.
+     *
+     * @throws IllegalArgumentException if validation fails.
+     * @return The IBAN to be used for the transaction.
+     */
+    private String validateAndGetIbanForAtm(TransactionDto dto) {
+        if (dto.getAmount() == null || dto.getTransactionType() == null) {
+            throw new IllegalArgumentException("Fields 'amount' and 'transactionType' are required.");
+        }
+
+        return switch (dto.getTransactionType()) {
+            case DEPOSIT -> {
+                if (dto.getToIban() == null) {
+                    throw new IllegalArgumentException("Field 'toIban' is required for deposit.");
+                }
+                yield dto.getToIban();
+            }
+            case WITHDRAWAL -> {
+                if (dto.getFromIban() == null) {
+                    throw new IllegalArgumentException("Field 'fromIban' is required for withdrawal.");
+                }
+                yield dto.getFromIban();
+            }
+            default -> throw new IllegalArgumentException("Invalid transaction type for ATM operation.");
+        };
+    }
+
+    /**
+     * Builds the final TransactionResponseDto from a completed Transaction entity.
+     *
+     * @param tx The completed transaction from the service.
+     * @return A user-facing DTO for the response.
+     */
+    private TransactionResponseDto buildAtmTransactionResponse(Transaction tx) {
+        if (tx.getTransactionType() == TransactionType.DEPOSIT) {
+            String toName = tx.getToAccount().getCustomer().getFirstName() + " " + tx.getToAccount().getCustomer().getLastName();
+            return new TransactionResponseDto(
+                    tx.getTransactionId(), tx.getTransactionType(), tx.getAmount(), tx.getTimestamp(),
+                    null, null, tx.getToAccount().getIBAN(), toName, "DEPOSIT"
+            );
+        } else { // WITHDRAWAL
+            String fromName = tx.getFromAccount().getCustomer().getFirstName() + " " + tx.getFromAccount().getCustomer().getLastName();
+            return new TransactionResponseDto(
+                    tx.getTransactionId(), tx.getTransactionType(), tx.getAmount(), tx.getTimestamp(),
+                    tx.getFromAccount().getIBAN(), fromName, null, null, "WITHDRAWAL"
+            );
         }
     }
 }

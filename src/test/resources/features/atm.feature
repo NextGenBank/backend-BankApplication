@@ -32,4 +32,3 @@ Feature: ATM Transactions
     Then the ATM operation fails with HTTP status 400
     And the response contains the error message "Insufficient funds."
     And the new balance of account "NL01NEXT0001" is 100.00
-

@@ -16,16 +16,19 @@ import com.nextgenbank.backend.service.UserService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.security.Principal;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.web.PageableDefault;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -40,10 +43,11 @@ public class TransactionController {
         this.userService = userService;
     }
 
+    /**
+     * Get filtered transactions for the current user with pagination
+     */
     @GetMapping
     public ResponseEntity<Page<TransactionResponseDto>> getTransactions(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String iban,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String type,
@@ -51,67 +55,102 @@ public class TransactionController {
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) BigDecimal amount,
             @RequestParam(required = false) String amountFilter,
-            Principal principal
+            @PageableDefault(size = 10, page = 0) Pageable pageable,
+            Principal principal,
+            HttpServletRequest request
     ) {
-        User user = userService.getByEmailOrThrow(principal.getName());
-        Pageable pageable = PageRequest.of(page, size);
-
-        Page<Transaction> pageResult = transactionService.getFilteredTransactionsForUser(
-                user.getUserId(), iban, name, type, startDate, endDate, amount, amountFilter, pageable
-        );
-
-        Page<TransactionResponseDto> dtoPage = pageResult.map(txn ->
-                TransactionMapper.toResponseDto(txn, user.getUserId()));
-
-        return ResponseEntity.ok(dtoPage);
-    }
-
-    @GetMapping("/all")
-    public ResponseEntity<List<TransactionDto>> getAllTransactions() {
-        return ResponseEntity.ok(transactionService.getAllTransactions());
-    }
-
-
-    @GetMapping("/customer/{customerId}")
-    public ResponseEntity<List<TransactionDto>> getCustomerTransactions(@PathVariable Long customerId) {
-        return ResponseEntity.ok(transactionService.getTransactionsByCustomerId(customerId));
-    }
-
-
-    @PostMapping("/transfer")
-    public ResponseEntity<?> transferFunds(@RequestBody TransferRequestDto transferRequestDto) {
         try {
-            TransactionDto transactionDto = transactionService.transferFunds(transferRequestDto);
-            return ResponseEntity.ok(Map.of(
-                    "message", "Transfer completed successfully",
-                    "transaction", transactionDto
-            ));
+            User user = userService.getByEmailOrThrow(principal.getName());
+
+            Page<Transaction> pageResult = transactionService.getFilteredTransactionsForUser(
+                    user.getUserId(), iban, name, type, startDate, endDate, amount, amountFilter, pageable
+            );
+
+            Page<TransactionResponseDto> dtoPage = pageResult.map(txn ->
+                    TransactionMapper.toResponseDto(txn, user.getUserId()));
+
+            return ResponseEntity.ok(dtoPage);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            throw new RuntimeException("Error fetching transactions: " + e.getMessage(), e);
         }
     }
 
+    /**
+     * Get all transactions with pagination for employee view
+     */
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<Page<TransactionDto>> getAllTransactions(
+            @PageableDefault(size = 10, page = 0) Pageable pageable) {
+        try {
+            return ResponseEntity.ok(transactionService.getAllTransactionsPaginated(pageable));
+        } catch (Exception e) {
+            throw new RuntimeException("Error fetching all transactions: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Get transactions for a specific customer with pagination
+     */
+    @GetMapping("/customer/{customerId}")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<Page<TransactionDto>> getCustomerTransactions(
+            @PathVariable Long customerId,
+            @PageableDefault(size = 10, page = 0) Pageable pageable) {
+        try {
+            return ResponseEntity.ok(transactionService.getTransactionsByCustomerIdPaginated(customerId, pageable));
+        } catch (Exception e) {
+            throw new RuntimeException("Error fetching customer transactions: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Process a transfer between accounts
+     */
+    @PostMapping("/transfer")
+    public ResponseEntity<TransactionDto> transferFunds(
+            @RequestBody TransferRequestDto transferRequest) {
+        try {
+            TransactionDto transactionDto = transactionService.transferFunds(transferRequest);
+            return ResponseEntity.ok(transactionDto);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Invalid transfer request: " + e.getMessage(), e);
+        } catch (SecurityException e) {
+            throw new RuntimeException("Authorization error: " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new RuntimeException("Transfer failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Switch funds between accounts for a customer
+     */
     @PostMapping("/switch")
-    public ResponseEntity<?> switchFunds(@CurrentUser UserPrincipal principal,
-                                         @RequestBody SwitchFundsRequestDto request) {
+    public ResponseEntity<SwitchFundsResponseDto> switchFunds(
+            @CurrentUser UserPrincipal principal,
+            @RequestBody SwitchFundsRequestDto request) {
         try {
             SwitchFundsResponseDto responseDto = transactionService.switchFunds(principal.getUser(), request);
             return ResponseEntity.ok(responseDto);
         } catch (IllegalStateException | IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            throw new RuntimeException("Invalid switch request: " + e.getMessage(), e);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("message", "Unexpected error occurred."));
+            throw new RuntimeException("Switch failed: " + e.getMessage(), e);
         }
     }
     
     /**
-     * GET /api/transactions/pending
-     * Returns a list of pending transactions
+     * Get pending transactions with pagination
      */
     @GetMapping("/pending")
-    public ResponseEntity<List<TransactionDto>> getPendingTransactions() {
-        return ResponseEntity.ok(transactionService.getPendingTransactions());
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<Page<TransactionDto>> getPendingTransactions(
+            @PageableDefault(size = 10, page = 0) Pageable pageable) {
+        try {
+            return ResponseEntity.ok(transactionService.getPendingTransactionsPaginated(pageable));
+        } catch (Exception e) {
+            throw new RuntimeException("Error fetching pending transactions: " + e.getMessage(), e);
+        }
     }
 
     @PostMapping("/atm")

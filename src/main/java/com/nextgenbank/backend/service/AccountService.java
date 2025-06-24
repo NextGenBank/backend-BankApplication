@@ -76,6 +76,7 @@ public class AccountService {
 
     /**
      * Update the absolute transfer limit for an account
+     * Validates that the limit is a positive number
      */
     @Transactional
     public Account updateAbsoluteTransferLimit(String iban, BigDecimal absoluteLimit) {
@@ -84,9 +85,18 @@ public class AccountService {
         if (iban == null || iban.isEmpty()) {
             throw new IllegalArgumentException("IBAN cannot be null or empty");
         }
+        
+        // Validate transfer limit
+        if (absoluteLimit == null) {
+            throw new IllegalArgumentException("Transfer limit cannot be null");
+        }
+        
+        if (absoluteLimit.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Transfer limit must be a positive number");
+        }
 
         Account account = accountRepository.findById(iban)
-                .orElseThrow(() -> new RuntimeException("Account not found with IBAN: " + iban));
+                .orElseThrow(() -> new IllegalArgumentException("Account not found with IBAN: " + iban));
 
         account.setAbsoluteTransferLimit(absoluteLimit);
         Account savedAccount = accountRepository.save(account);

@@ -17,12 +17,14 @@ import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction> {
     List<Transaction> findByFromAccountOrToAccountOrderByTimestampDesc(Account fromAccount, Account toAccount);
-
     List<Transaction> findAllByOrderByTimestampDesc();
-
     List<Transaction> findByInitiatorOrderByTimestampDesc(User initiator);
-
     List<Transaction> findByFromAccount_CustomerOrToAccount_CustomerOrderByTimestampDesc(User customer, User sameCustomer);
+
+    // Paginated methods
+    Page<Transaction> findAllByOrderByTimestampDesc(Pageable pageable);
+    Page<Transaction> findByInitiatorOrderByTimestampDesc(User initiator, Pageable pageable);
+    Page<Transaction> findByFromAccount_CustomerOrToAccount_CustomerOrderByTimestampDesc(User customer, User sameCustomer, Pageable pageable);
 
     @Query("""
     SELECT t FROM Transaction t
@@ -60,4 +62,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
             @Param("amountOperation") String amountOperation,
             Pageable pageable
     );
+
+
+    @Query("""
+       SELECT t
+       FROM Transaction t
+       WHERE t.amount = 0
+    """)
+    Page<Transaction> findPendingTransactions(Pageable pageable);
 }

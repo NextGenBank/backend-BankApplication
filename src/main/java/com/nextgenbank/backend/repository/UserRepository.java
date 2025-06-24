@@ -21,8 +21,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByPhoneNumber(String phoneNumber);
 
     List<User> findByFirstNameIgnoreCaseAndLastNameIgnoreCaseAndStatus(String firstName, String lastName, UserStatus userStatus);
-    List<User> findByRoleAndStatus(UserRole role, UserStatus status);
-    List<User> findByRole(UserRole role);
+    
+    // Paginated queries for Employee features
+    Page<User> findByRoleAndStatus(UserRole role, UserStatus status, Pageable pageable);
+    List<User> findByRoleAndStatus(UserRole role, UserStatus status); // Keep non-paginated version for compatibility
+    
+    Page<User> findByRole(UserRole role, Pageable pageable);
+    List<User> findByRole(UserRole role); // Keep non-paginated version for compatibility
 
     @Query("""
         SELECT DISTINCT u FROM User u

@@ -9,11 +9,15 @@ public class AccountDto {
     private String iban;
     private AccountType accountType;
     private BigDecimal balance;
+    private BigDecimal absoluteTransferLimit;
+    private BigDecimal dailyTransferAmount;
 
     public AccountDto(Account account) {
         this.iban = account.getIBAN();
         this.accountType = account.getAccountType();
         this.balance = account.getBalance();
+        this.absoluteTransferLimit = account.getAbsoluteTransferLimit();
+        this.dailyTransferAmount = account.getDailyTransferAmount();
     }
 
     // Getters
@@ -27,5 +31,13 @@ public class AccountDto {
 
     public BigDecimal getBalance() {
         return balance;
+    }
+    
+    public BigDecimal getAbsoluteTransferLimit() {
+        return absoluteTransferLimit;
+    }
+    
+    public BigDecimal getDailyTransferAmount() {
+        return dailyTransferAmount;
     }
 }

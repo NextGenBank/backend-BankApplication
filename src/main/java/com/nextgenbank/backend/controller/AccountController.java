@@ -2,11 +2,14 @@ package com.nextgenbank.backend.controller;
 
 import com.nextgenbank.backend.model.Account;
 import com.nextgenbank.backend.model.User;
+import com.nextgenbank.backend.model.dto.AccountDto;
 import com.nextgenbank.backend.model.dto.ApprovalRequestDto;
 
 import com.nextgenbank.backend.service.AccountService;
 import com.nextgenbank.backend.service.UserService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -57,26 +60,25 @@ public class AccountController {
 
     /**
      * Update absolute transfer limit for an account
+     * Only employees can update transfer limits
      */
     @PutMapping("/limit")
-    public ResponseEntity<?> updateAbsoluteTransferLimit(@RequestBody ApprovalRequestDto approvalRequestDto) {
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<AccountDto> updateAbsoluteTransferLimit(@RequestBody ApprovalRequestDto approvalRequestDto) {
         try {
-            System.out.println("Received limit update request: " + approvalRequestDto);
-
             if (approvalRequestDto.getAccountIban() == null || approvalRequestDto.getAccountIban().isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Account IBAN cannot be null or empty"));
+                throw new IllegalArgumentException("Account IBAN cannot be null or empty");
             }
 
             Account account = accountService.updateAbsoluteTransferLimit(
                     approvalRequestDto.getAccountIban(),
                     approvalRequestDto.getAbsoluteTransferLimit()
             );
-            return ResponseEntity.ok(Map.of(
-                    "message", "Absolute transfer limit updated successfully",
-                    "account", account
-            ));
+            return ResponseEntity.ok(new AccountDto(account));
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Invalid limit update request: " + e.getMessage(), e);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            throw new RuntimeException("Failed to update transfer limit: " + e.getMessage(), e);
         }
     }
     

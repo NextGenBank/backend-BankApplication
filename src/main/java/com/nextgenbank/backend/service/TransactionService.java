@@ -63,9 +63,14 @@ public class TransactionService {
         String normalizedAmountFilter = normalizeAmountFilter(amount, amountFilter);
         LocalDate parsedStartDate = safeParseDate(startDate);
         LocalDate parsedEndDate = safeParseDate(endDate);
+
+        LocalDateTime startOfDay = parsedStartDate != null ? parsedStartDate.atStartOfDay() : null;
+        LocalDateTime endOfDay = parsedEndDate != null ? parsedEndDate.atTime(23, 59, 59) : null;
+
         BigDecimal normalizedAmount = normalizeAmount(amount);
 
-        if (parsedStartDate == null && parsedEndDate == null && startDate != null || endDate != null) {
+        if ((startDate != null && parsedStartDate == null) || (endDate != null && parsedEndDate == null)) {
+            logger.warn("One of the date filters could not be parsed correctly. startDate={}, endDate={}", startDate, endDate);
             return Page.empty(pageable);
         }
 
@@ -74,8 +79,8 @@ public class TransactionService {
                 iban,
                 name,
                 direction,
-                parsedStartDate,
-                parsedEndDate,
+                startOfDay,
+                endOfDay,
                 normalizedAmount,
                 normalizedAmountFilter,
                 pageable

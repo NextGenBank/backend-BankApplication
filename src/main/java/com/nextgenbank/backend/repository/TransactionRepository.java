@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction> {
@@ -43,8 +44,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
            (:direction = 'INCOMING' AND toCustomer.userId = :userId AND (fromCustomer.userId IS NULL OR fromCustomer.userId != :userId))
            OR (:direction = 'OUTGOING' AND fromCustomer.userId = :userId AND (toCustomer.userId IS NULL OR toCustomer.userId != :userId))
            OR (:direction = 'INTERNAL' AND fromCustomer.userId = :userId AND toCustomer.userId = :userId))
-      AND (:startDate IS NULL OR CAST(t.timestamp AS date) >= :startDate)
-      AND (:endDate IS NULL OR CAST(t.timestamp AS date) <= :endDate)
+      AND (:startDate IS NULL OR t.timestamp >= :startDate)
+      AND (:endDate IS NULL OR t.timestamp <= :endDate)            
       AND (:amount IS NULL OR 
            (:amountOperation IS NULL OR :amountOperation = 'eq' AND t.amount = :amount)
            OR (:amountOperation = 'lt' AND t.amount < :amount)
@@ -56,8 +57,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
             @Param("iban") String iban,
             @Param("name") String name,
             @Param("direction") String direction,
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
             @Param("amount") BigDecimal amount,
             @Param("amountOperation") String amountOperation,
             Pageable pageable

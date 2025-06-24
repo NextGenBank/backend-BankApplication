@@ -19,19 +19,12 @@ import java.util.Map;
 public class CustomExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponseDto> handleValidationErrors(MethodArgumentNotValidException ex, HttpServletRequest request) {
-        Map<String, String> fieldErrors = new HashMap<>();
+    public ResponseEntity<Map<String, String>> handleValidationErrors(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
-            fieldErrors.put(error.getField(), error.getDefaultMessage());
+            errors.put(error.getField(), error.getDefaultMessage());
         }
-        
-        ErrorResponseDto errorResponse = new ErrorResponseDto(
-                "Validation failed: " + fieldErrors,
-                request.getRequestURI(),
-                HttpStatus.BAD_REQUEST.value()
-        );
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -40,43 +33,14 @@ public class CustomExceptionHandler {
     }
 
     @ExceptionHandler({UsernameNotFoundException.class, BadCredentialsException.class})
-    public ResponseEntity<ErrorResponseDto> handleAuthErrors(RuntimeException ex, HttpServletRequest request) {
-        ErrorResponseDto errorResponse = new ErrorResponseDto(
-                "Authentication failed: Invalid email or password",
-                request.getRequestURI(),
-                HttpStatus.UNAUTHORIZED.value()
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
-    }
-    
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponseDto> handleAccessDeniedException(AccessDeniedException ex, HttpServletRequest request) {
-        ErrorResponseDto errorResponse = new ErrorResponseDto(
-                "Access denied: " + ex.getMessage(),
-                request.getRequestURI(),
-                HttpStatus.FORBIDDEN.value()
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
-    }
-    
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ErrorResponseDto> handleRuntimeException(RuntimeException ex, HttpServletRequest request) {
-        ErrorResponseDto errorResponse = new ErrorResponseDto(
-                ex.getMessage(),
-                request.getRequestURI(),
-                HttpStatus.BAD_REQUEST.value()
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    public ResponseEntity<String> handleAuthErrors(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid email or password");
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponseDto> handleGenericException(Exception ex, HttpServletRequest request) {
-        ErrorResponseDto errorResponse = new ErrorResponseDto(
-                "Server error: " + ex.getMessage(),
-                request.getRequestURI(),
-                HttpStatus.INTERNAL_SERVER_ERROR.value()
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    public ResponseEntity<Map<String, String>> handleGenericException(Exception ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", ex.getMessage());
+        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
-

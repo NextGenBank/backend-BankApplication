@@ -339,55 +339,71 @@ public class TransactionService {
      */
     @Transactional
     public SwitchFundsResponseDto switchFunds(User user, SwitchFundsRequestDto request) {
+        validateCustomer(user);
+        validateAmount(request.getAmount());
+
+        Account checking = getAccount(user, AccountType.CHECKING);
+        Account savings  = getAccount(user, AccountType.SAVINGS);
+
+        Account from = getSourceAccount(request.getFrom(), checking, savings);
+        Account to   = (from == checking) ? savings : checking;
+
+        ensureSufficientFunds(from, request.getAmount(), request.getFrom());
+
+        transferFunds(from, to, request.getAmount());
+        logTransaction(user, from, to, request.getAmount());
+
+        return new SwitchFundsResponseDto(checking.getBalance(), savings.getBalance());
+    }
+
+    private void validateCustomer(User user) {
         if (user.getRole() != UserRole.CUSTOMER) {
             throw new IllegalStateException("Only customers can switch funds.");
         }
+    }
 
-        Account checking = accountRepository
-                .findByCustomerUserIdAndAccountType(user.getUserId(), AccountType.CHECKING)
-                .orElseThrow(() -> new IllegalStateException("Checking account not found for user."));
-
-        Account savings = accountRepository
-                .findByCustomerUserIdAndAccountType(user.getUserId(), AccountType.SAVINGS)
-                .orElseThrow(() -> new IllegalStateException("Savings account not found for user."));
-
-        Account from, to;
-        if ("CHECKING".equalsIgnoreCase(request.getFrom())) {
-            from = checking;
-            to = savings;
-        } else if ("SAVINGS".equalsIgnoreCase(request.getFrom())) {
-            from = savings;
-            to = checking;
-        } else {
-            throw new IllegalArgumentException("Invalid source account: " + request.getFrom());
-        }
-
-        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+    private void validateAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Transfer amount must be greater than zero.");
         }
+    }
 
-        if (from.getBalance().compareTo(request.getAmount()) < 0) {
-            throw new IllegalStateException("Insufficient balance in the " + request.getFrom().toLowerCase() + " account.");
+    private Account getAccount(User user, AccountType type) {
+        return accountRepository
+                .findByCustomerUserIdAndAccountType(user.getUserId(), type)
+                .orElseThrow(() -> new IllegalStateException(type + " account not found for user."));
+    }
+
+    private Account getSourceAccount(String fromType, Account checking, Account savings) {
+        return switch (fromType.toUpperCase()) {
+            case "CHECKING" -> checking;
+            case "SAVINGS" -> savings;
+            default -> throw new IllegalArgumentException("Invalid source account: " + fromType);
+        };
+    }
+
+    private void ensureSufficientFunds(Account from, BigDecimal amount, String sourceType) {
+        if (from.getBalance().compareTo(amount) < 0) {
+            throw new IllegalStateException("Insufficient balance in the " + sourceType.toLowerCase() + " account.");
         }
+    }
 
-        from.setBalance(from.getBalance().subtract(request.getAmount()));
-        to.setBalance(to.getBalance().add(request.getAmount()));
-
+    private void transferFunds(Account from, Account to, BigDecimal amount) {
+        from.setBalance(from.getBalance().subtract(amount));
+        to.setBalance(to.getBalance().add(amount));
         accountRepository.save(from);
         accountRepository.save(to);
+    }
 
-        // Log the transaction
-        Transaction transaction = new Transaction();
-        transaction.setTransactionType(TransactionType.TRANSFER);
-        transaction.setAmount(request.getAmount());
-        transaction.setFromAccount(from);
-        transaction.setToAccount(to);
-        transaction.setTimestamp(LocalDateTime.now());
-        transaction.setInitiator(user);
-
-        transactionRepository.save(transaction);
-
-        return new SwitchFundsResponseDto(checking.getBalance(), savings.getBalance());
+    private void logTransaction(User user, Account from, Account to, BigDecimal amount) {
+        Transaction tx = new Transaction();
+        tx.setTransactionType(TransactionType.TRANSFER);
+        tx.setAmount(amount);
+        tx.setFromAccount(from);
+        tx.setToAccount(to);
+        tx.setTimestamp(LocalDateTime.now());
+        tx.setInitiator(user);
+        transactionRepository.save(tx);
     }
 
     /**
